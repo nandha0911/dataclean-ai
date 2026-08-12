@@ -72,10 +72,21 @@ class DataAnalyzer:
 
             # ── Inconsistent Categories / Text Repetition Detection ──────────
             inconsistent_categories = None
+            is_gender_column = False
+
             if series.dtype == 'object' or str(series.dtype) == 'category':
                 s_str = series.dropna().astype(str)
                 cleaned_str = s_str.str.strip().str.lower()
-                
+
+                # Detect gender/sex column with abbreviation inconsistencies
+                GENDER_COL_NAMES = {'gender', 'sex', 'genre', 'geslacht'}
+                GENDER_VARIANTS = {'m', 'f', 'male', 'female', 'man', 'woman', 'boy', 'girl', 'men', 'women'}
+                col_lower = col.strip().lower()
+                unique_vals_lower = set(cleaned_str.unique())
+                if col_lower in GENDER_COL_NAMES or unique_vals_lower.issubset(GENDER_VARIANTS | {'', 'other', 'unknown', 'na'}):
+                    if len(unique_vals_lower) > 1:
+                        is_gender_column = True
+
                 # Check if stripping whitespace and unifying casing reduces unique values
                 if cleaned_str.nunique() < s_str.nunique():
                     lower_map = {}
@@ -84,7 +95,7 @@ class DataAnalyzer:
                         if norm not in lower_map:
                             lower_map[norm] = []
                         lower_map[norm].append(orig_val)
-                    
+
                     inconsistents = []
                     for norm_val, orig_list in lower_map.items():
                         if len(orig_list) > 1:
@@ -109,6 +120,7 @@ class DataAnalyzer:
                 "highly_correlated_with": highly_correlated_with,
                 "possible_incorrect_types": False,
                 "inconsistent_categories": inconsistent_categories,
+                "is_gender_column": is_gender_column,
                 "impossible_values": None
             }
             columns_analysis.append(col_result)

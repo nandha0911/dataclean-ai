@@ -24,10 +24,21 @@ class AIRecommender:
             constant = col.get('constant', False)
             unique_id = col.get('unique_identifier', False)
             class_imbalance = col.get('class_imbalance', False)
+            is_gender_column = col.get('is_gender_column', False)
 
             # Layer 1: Rule Engine
             rec = None
-            if constant:
+            if is_gender_column:
+                unique_vals = list(set(str(v).strip() for v in [] if v))  # preview
+                rec = Recommendation(
+                    column=col_name, technique="Gender Standardization", confidence=98.0,
+                    reason=f"Column '{col_name}' contains mixed gender abbreviations (e.g. M, F, Male, Female, m, f). Standardizing to Male/Female.",
+                    advantages=["Eliminates M/F/Male/Female/man/woman inconsistencies", "Produces clean binary or multi-class values"],
+                    disadvantages=["Irreversible without original data"],
+                    alternatives=["Text Standardization", "Mode Imputation"],
+                    expected_improvement="Consistency ↑ 100% — all values normalized to Male / Female."
+                )
+            elif constant:
                 rec = Recommendation(
                     column=col_name, technique="Delete Column", confidence=99.0,
                     reason="Column has only one unique value.",

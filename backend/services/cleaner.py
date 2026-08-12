@@ -151,6 +151,28 @@ class DataCleaner:
             df[column].replace({'Nan': None, 'None': None, 'Null': None, '': None, 'nan': None}, inplace=True)
         return df
 
+    def standardize_gender(self, df: pd.DataFrame, column: str):
+        """Normalize all gender/sex abbreviations to Male / Female / Unknown."""
+        GENDER_MAP = {
+            # Male variants
+            'm': 'Male', 'male': 'Male', 'man': 'Male', 'men': 'Male',
+            'boy': 'Male', 'boys': 'Male', 'gents': 'Male', 'gentleman': 'Male',
+            'm.': 'Male', 'mal': 'Male', '1': 'Male',
+            # Female variants
+            'f': 'Female', 'female': 'Female', 'woman': 'Female', 'women': 'Female',
+            'girl': 'Female', 'girls': 'Female', 'lady': 'Female', 'ladies': 'Female',
+            'f.': 'Female', 'fem': 'Female', '0': 'Female',
+            # Unknown / Other
+            'unknown': 'Unknown', 'other': 'Other', 'na': None, 'n/a': None,
+            'none': None, 'null': None, 'nan': None, '': None,
+        }
+        if column in df.columns:
+            df[column] = df[column].apply(
+                lambda x: GENDER_MAP.get(str(x).strip().lower(), str(x).strip().title())
+                if pd.notnull(x) and str(x).strip() != '' else x
+            )
+        return df
+
     def apply_cleaning_plan(self, df: pd.DataFrame, operations_list: list) -> tuple:
         df_clean = df.copy()
         report = []
@@ -210,6 +232,8 @@ class DataCleaner:
                     df_clean = self.duplicate_removal(df_clean)
                 elif action in ["text_standardization", "standardize_text", "trim_whitespace", "title_case", "clean_text"]:
                     df_clean = self.standardize_text(df_clean, col)
+                elif action in ["gender_standardization", "standardize_gender", "fix_gender", "normalize_gender"]:
+                    df_clean = self.standardize_gender(df_clean, col)
                 else:
                     # Fallback try method name directly
                     method = getattr(self, action, None)
