@@ -16,6 +16,8 @@ class DataAnalyzer:
             corr_df = df[numeric_cols].corr(method='pearson')
             correlation_matrix = corr_df.where(pd.notnull(corr_df), None).to_dict()
 
+        full_row_duplicates = int(df.duplicated().sum())
+
         for col in df.columns:
             series = df[col]
             missing_count = int(series.isnull().sum())
@@ -23,9 +25,8 @@ class DataAnalyzer:
             
             dtype = detect_column_type(series)
             
-            # Duplicates specific to column? Wait, requirement says duplicate records (full dataset).
-            # But the schema has duplicate_count per column? Schema has duplicate_count as Optional[int] in ColumnAnalysis.
-            # I will just put 0 there for now and let the cleaner handle full dataset duplicates.
+            # Duplicates count in this column
+            dup_count = int(series.duplicated().sum())
             
             outliers_iqr = 0
             outliers_zscore = 0
@@ -69,12 +70,34 @@ class DataAnalyzer:
                 if counts.iloc[0] > 0.9: # 90% of data is one class
                     class_imbalance = True
 
+            # ── Inconsistent Categories / Text Repetition Detection ──────────
+            inconsistent_categories = None
+            if series.dtype == 'object' or str(series.dtype) == 'category':
+                s_str = series.dropna().astype(str)
+                cleaned_str = s_str.str.strip().str.lower()
+                
+                # Check if stripping whitespace and unifying casing reduces unique values
+                if cleaned_str.nunique() < s_str.nunique():
+                    lower_map = {}
+                    for orig_val in s_str.unique():
+                        norm = orig_val.strip().lower()
+                        if norm not in lower_map:
+                            lower_map[norm] = []
+                        lower_map[norm].append(orig_val)
+                    
+                    inconsistents = []
+                    for norm_val, orig_list in lower_map.items():
+                        if len(orig_list) > 1:
+                            inconsistents.extend(orig_list)
+                    if inconsistents:
+                        inconsistent_categories = inconsistents
+
             col_result = {
                 "column_name": col,
                 "dtype": dtype,
                 "missing_count": missing_count,
                 "missing_pct": missing_pct,
-                "duplicate_count": None, # Will compute row-level duplicates separately or map to column
+                "duplicate_count": dup_count,
                 "outliers_iqr": outliers_iqr,
                 "outliers_zscore": outliers_zscore,
                 "skewness": skewness,
@@ -84,8 +107,8 @@ class DataAnalyzer:
                 "noisy": noisy,
                 "class_imbalance": class_imbalance,
                 "highly_correlated_with": highly_correlated_with,
-                "possible_incorrect_types": False, # Simple heuristic
-                "inconsistent_categories": None,
+                "possible_incorrect_types": False,
+                "inconsistent_categories": inconsistent_categories,
                 "impossible_values": None
             }
             columns_analysis.append(col_result)
@@ -94,5 +117,6 @@ class DataAnalyzer:
             "dataset_id": dataset_id,
             "columns": columns_analysis,
             "correlation_matrix": correlation_matrix,
-            "quality_score": {} # Placeholders to be filled by scorer
+            "full_row_duplicates": full_row_duplicates,
+            "quality_score": {}
         }

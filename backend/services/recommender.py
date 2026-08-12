@@ -85,6 +85,22 @@ class AIRecommender:
                     advantages=["Balances classes"], disadvantages=["Synthetic data might add noise"],
                     alternatives=["Undersampling"], expected_improvement="Better model performance on minority class."
                 )
+            elif col.get('inconsistent_categories') and len(col['inconsistent_categories']) > 0:
+                inconsistent_preview = ", ".join([f"'{x}'" for x in col['inconsistent_categories'][:3]])
+                rec = Recommendation(
+                    column=col_name, technique="Text Standardization", confidence=96.0,
+                    reason=f"Inconsistent text formatting / casing variations detected: {inconsistent_preview}.",
+                    advantages=["Harmonizes category names", "Removes trailing spaces & normalizes casing"],
+                    disadvantages=["Modifies original text format"],
+                    alternatives=["Mode Imputation"], expected_improvement="Consistency ↑ 100%"
+                )
+            elif col.get('duplicate_count', 0) > 0 and not unique_id and dtype == 'text':
+                rec = Recommendation(
+                    column=col_name, technique="Text Standardization", confidence=90.0,
+                    reason=f"Column has {col['duplicate_count']} repeated string values.",
+                    advantages=["Standardizes repeated names/text"], disadvantages=[],
+                    alternatives=["Duplicate Removal"], expected_improvement="Cleaner text groupings."
+                )
 
             # Layer 2: ML Model fallback or augmentation
             if rec is None:

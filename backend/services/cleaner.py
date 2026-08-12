@@ -144,6 +144,13 @@ class DataCleaner:
         df.reset_index(drop=True, inplace=True)
         return df
 
+    def standardize_text(self, df: pd.DataFrame, column: str):
+        if column in df.columns:
+            mask = df[column].notnull()
+            df.loc[mask, column] = df.loc[mask, column].astype(str).str.strip().str.title()
+            df[column].replace({'Nan': None, 'None': None, 'Null': None, '': None, 'nan': None}, inplace=True)
+        return df
+
     def apply_cleaning_plan(self, df: pd.DataFrame, operations_list: list) -> tuple:
         df_clean = df.copy()
         report = []
@@ -199,8 +206,10 @@ class DataCleaner:
                     df_clean = self.power_transformation(df_clean, col, **params)
                 elif action in ["smote"]:
                     df_clean = self.smote_oversample(df_clean, col)
-                elif action in ["duplicate_removal", "remove_duplicates"]:
+                elif action in ["duplicate_removal", "remove_duplicates", "drop_duplicates"]:
                     df_clean = self.duplicate_removal(df_clean)
+                elif action in ["text_standardization", "standardize_text", "trim_whitespace", "title_case", "clean_text"]:
+                    df_clean = self.standardize_text(df_clean, col)
                 else:
                     # Fallback try method name directly
                     method = getattr(self, action, None)
