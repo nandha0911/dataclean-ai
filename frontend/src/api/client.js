@@ -98,6 +98,9 @@ export const getVisualizations = (datasetId) =>
 export const sendChatMessage = (question, context = '') =>
   api.post('/chat', { question, context });
 
+export const getDatasetPreview = (datasetId, mode = 'head', limit = 20) =>
+  api.get(`/preview/${datasetId}?mode=${mode}&limit=${limit}`);
+
 /**
  * Health check
  */

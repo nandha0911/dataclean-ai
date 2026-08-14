@@ -1,11 +1,13 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from core.database import get_db, Dataset
 from models.schemas import DatasetUploadResponse
 from utils.file_utils import save_upload_file, read_dataset
 from core.config import settings
 import os
 import json
+import numpy as np
 
 router = APIRouter()
 
@@ -43,3 +45,45 @@ async def upload_dataset(file: UploadFile = File(...), db: AsyncSession = Depend
         col_count=col_count,
         preview=preview
     )
+
+@router.get("/preview/{dataset_id}")
+async def get_dataset_preview(
+    dataset_id: int,
+    mode: str = "head",
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
+    dataset = result.scalar_one_or_none()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+        
+    active_path = dataset.cleaned_path if (dataset.cleaned_path and os.path.exists(dataset.cleaned_path)) else dataset.original_path
+    if not active_path or not os.path.exists(active_path):
+        raise HTTPException(status_code=404, detail="Dataset file not found")
+        
+    try:
+        df = read_dataset(active_path)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read dataset: {str(e)}")
+        
+    if mode == "tail":
+        df_preview = df.tail(limit)
+    elif mode == "sample":
+        df_preview = df.sample(min(limit, len(df))) if len(df) > 0 else df
+    elif mode == "all":
+        df_preview = df.head(1000)  # cap at 1000 rows for safety
+    else: # head
+        df_preview = df.head(limit)
+        
+    # Replace NaN / Inf with None so JSON serialization works
+    df_preview = df_preview.replace({np.nan: None, np.inf: None, -np.inf: None})
+    preview_data = df_preview.to_dict(orient="records")
+    
+    return {
+        "dataset_id": dataset_id,
+        "mode": mode,
+        "total_rows": len(df),
+        "columns": df.columns.tolist(),
+        "preview": preview_data
+    }
