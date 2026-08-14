@@ -95,7 +95,7 @@ export default function DatasetPreview() {
                 { id: 'head', label: 'First Rows (Head)' },
                 { id: 'tail', label: 'Last Rows (Tail)' },
                 { id: 'sample', label: 'Random Sample' },
-                { id: 'all', label: 'All Data (Max 1000)' },
+                { id: 'all', label: 'All Data' },
               ].map((m) => (
                 <button
                   key={m.id}

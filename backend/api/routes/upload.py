@@ -72,7 +72,7 @@ async def get_dataset_preview(
     elif mode == "sample":
         df_preview = df.sample(min(limit, len(df))) if len(df) > 0 else df
     elif mode == "all":
-        df_preview = df.head(1000)  # cap at 1000 rows for safety
+        df_preview = df  # return all rows
     else: # head
         df_preview = df.head(limit)
         
