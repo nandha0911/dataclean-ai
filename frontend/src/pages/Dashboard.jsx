@@ -1,6 +1,7 @@
 /**
  * Dashboard — shows real dataset stats, no hardcoded sample data
  */
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -46,6 +47,7 @@ function EmptyState({ onUpload }) {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { currentDataset, analysisResult, qualityScore } = useAppStore();
+  const [showAllColumns, setShowAllColumns] = useState(false);
 
   const qs = analysisResult?.quality_score?.overall ?? qualityScore ?? null;
 
@@ -147,7 +149,7 @@ export default function Dashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {analysisResult.columns.slice(0, 8).map((col) => (
+                        {(showAllColumns ? analysisResult.columns : analysisResult.columns.slice(0, 8)).map((col) => (
                           <tr key={col.column_name}>
                             <td className="font-semibold">{col.column_name}</td>
                             <td className="text-gray-400">{col.dtype ?? '—'}</td>
@@ -162,9 +164,14 @@ export default function Dashboard() {
                       </tbody>
                     </table>
                     {analysisResult.columns.length > 8 && (
-                      <p className="text-xs text-gray-400 font-medium mt-3 text-center">
-                        +{analysisResult.columns.length - 8} more columns
-                      </p>
+                      <div className="flex justify-center mt-4">
+                        <button
+                          onClick={() => setShowAllColumns(!showAllColumns)}
+                          className="text-xs font-semibold text-[#7C9082] hover:text-[#5E6B61] transition-colors py-1.5 px-3 rounded-full bg-gray-50 border border-gray-100 hover:border-gray-200"
+                        >
+                          {showAllColumns ? 'Show Less' : `+${analysisResult.columns.length - 8} more columns (Show All)`}
+                        </button>
+                      </div>
                     )}
                   </div>
                 ) : (
