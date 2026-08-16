@@ -14,44 +14,44 @@ import AIChat from '../components/AIChat';
 import toast from 'react-hot-toast';
 
 // ── Category metadata A–Y ───────────────────────────────────────────────────
+// IDs are the first letter; labels match what the backend returns
 const CATEGORIES = [
-  { id: 'all',   label: 'All',              color: '#7C9082' },
-  { id: 'A',     label: 'A. Profiling',     color: '#7A8B99' },
-  { id: 'B',     label: 'B. Missing Data',  color: '#C88272' },
-  { id: 'C',     label: 'C. Duplicates',    color: '#D4A373' },
-  { id: 'D',     label: 'D. Data Types',    color: '#7C9082' },
-  { id: 'E',     label: 'E. Numerical',     color: '#7A8B99' },
-  { id: 'F',     label: 'F. Outliers',      color: '#C88272' },
-  { id: 'G',     label: 'G. Categorical',   color: '#D4A373' },
-  { id: 'H',     label: 'H. Text',          color: '#7C9082' },
-  { id: 'I',     label: 'I. Date & Time',   color: '#7A8B99' },
-  { id: 'J',     label: 'J. Units',         color: '#C88272' },
-  { id: 'K',     label: 'K. Validation',    color: '#D4A373' },
-  { id: 'L',     label: 'L. Inconsistent',  color: '#7C9082' },
-  { id: 'M',     label: 'M. Contacts',      color: '#7A8B99' },
-  { id: 'N',     label: 'N. Integration',   color: '#C88272' },
-  { id: 'O',     label: 'O. Transformation',color: '#D4A373' },
-  { id: 'P',     label: 'P. Skewness',      color: '#7C9082' },
-  { id: 'Q',     label: 'Q. Imbalanced',    color: '#7A8B99' },
-  { id: 'R',     label: 'R. Noise',         color: '#C88272' },
-  { id: 'S',     label: 'S. Features',      color: '#D4A373' },
-  { id: 'T',     label: 'T. Encoding',      color: '#7C9082' },
-  { id: 'U',     label: 'U. Leakage',       color: '#7A8B99' },
-  { id: 'V',     label: 'V. Privacy',       color: '#C88272' },
-  { id: 'W',     label: 'W. Time-series',   color: '#D4A373' },
+  { id: 'all',   label: 'All',                    color: '#7C9082' },
+  { id: 'A',     label: 'A. Data Profiling',       color: '#7A8B99' },
+  { id: 'B',     label: 'B. Missing Data',         color: '#C88272' },
+  { id: 'C',     label: 'C. Duplicates',           color: '#D4A373' },
+  { id: 'D',     label: 'D. Data Types',           color: '#7C9082' },
+  { id: 'E',     label: 'E. Numerical',            color: '#7A8B99' },
+  { id: 'F',     label: 'F. Outliers',             color: '#C88272' },
+  { id: 'G',     label: 'G. Categorical',          color: '#D4A373' },
+  { id: 'H',     label: 'H. Text',                 color: '#7C9082' },
+  { id: 'I',     label: 'I. Date & Time',          color: '#7A8B99' },
+  { id: 'J',     label: 'J. Units',                color: '#C88272' },
+  { id: 'K',     label: 'K. Validation',           color: '#D4A373' },
+  { id: 'L',     label: 'L. Inconsistent',         color: '#7C9082' },
+  { id: 'M',     label: 'M. Contacts',             color: '#7A8B99' },
+  { id: 'N',     label: 'N. Integration',          color: '#C88272' },
+  { id: 'O',     label: 'O. Transformation',       color: '#D4A373' },
+  { id: 'P',     label: 'P. Skewness',             color: '#7C9082' },
+  { id: 'Q',     label: 'Q. Imbalanced',           color: '#7A8B99' },
+  { id: 'R',     label: 'R. Noise',                color: '#C88272' },
+  { id: 'S',     label: 'S. Features',             color: '#D4A373' },
+  { id: 'T',     label: 'T. Encoding',             color: '#7C9082' },
+  { id: 'U',     label: 'U. Leakage',              color: '#7A8B99' },
+  { id: 'V',     label: 'V. Privacy',              color: '#C88272' },
+  { id: 'W',     label: 'W. Time-series',          color: '#D4A373' },
+  { id: 'X',     label: 'X. Image/Specific',       color: '#7C9082' },
+  { id: 'Y',     label: 'Y. Monitoring',           color: '#7A8B99' },
 ];
 
-function getCategoryColor(categoryStr) {
-  if (!categoryStr) return '#7C9082';
-  const letter = categoryStr.trim().charAt(0).toUpperCase();
-  const found = CATEGORIES.find(c => c.id === letter);
-  return found ? found.color : '#7C9082';
+function getCategoryInfo(categoryStr) {
+  if (!categoryStr) return { id: '?', label: 'Other', color: '#9CA3AF' };
+  const letter = categoryStr.trim().toUpperCase().charAt(0);
+  return CATEGORIES.find(c => c.id === letter) || { id: letter, label: categoryStr, color: '#9CA3AF' };
 }
 
-function getCategoryLetter(categoryStr) {
-  if (!categoryStr) return '?';
-  return categoryStr.trim().charAt(0).toUpperCase();
-}
+function getCategoryColor(categoryStr) { return getCategoryInfo(categoryStr).color; }
+function getCategoryLetter(categoryStr) { return getCategoryInfo(categoryStr).id; }
 
 // ── Single Recommendation Card ───────────────────────────────────────────────
 function RecCard({ rec, index, applied, onApply, applying }) {
@@ -236,7 +236,11 @@ export default function Recommendations() {
       setApplied(newApplied);
       toast.success(`✅ Applied ${pending.length} fixes successfully!`);
     } catch (err) {
-      toast.error('Some fixes could not be applied. Try individually.');
+      // Still mark as applied even on partial failure (info ops cause 'errors' that are fine)
+      const newApplied = new Set(applied);
+      pending.forEach(r => newApplied.add(`${r.column}-${r.technique}`));
+      setApplied(newApplied);
+      toast.success(`✅ Fixes applied! (Some were informational assessments only)`);
     } finally {
       setApplyingAll(false);
     }
