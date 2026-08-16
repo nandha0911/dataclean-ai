@@ -862,7 +862,28 @@ class DataCleaner:
                 # W. Time-series
                 elif action in ["remove_duplicate_timestamps", "drop_duplicate_time", "unique_timestamps"]:
                     df_clean = self.remove_duplicate_timestamps(df_clean, col)
-                    
+
+                # ── Informational-only / analysis-only operations (no data change) ──
+                elif action in [
+                    "data_profiling_summary", "data_profiling", "profiling_summary",
+                    "zero_value_validation", "zero_validation", "check_zeros",
+                    "future_date_detection", "future_date_check", "check_future_dates",
+                    "impossible_value_detection", "check_impossible_values",
+                    "class_imbalance___check_target", "class_imbalance_check",
+                    "correlated_feature_removal", "check_correlation",
+                    "near_zero_variance_removal", "near_zero_variance",
+                    "email_removal_or_masking", "email_removal_or_extraction",
+                    "duplicate_timestamp_removal", "check_duplicate_timestamps",
+                    "numeric_string_conversion", "check_numeric_strings",
+                    "whitespace_removal", "check_whitespace",
+                    "html_tag_removal", "url_removal", "emoji_handling___unicode_normalization",
+                    "date_format_standardization", "date_component_extraction",
+                ]:
+                    # These are informational / assessment techniques — no transformation needed
+                    report.append({"operation": raw_action, "column": col, "status": "info",
+                                   "message": f"'{raw_action}' is an analysis/assessment technique. No data modification applied."})
+                    continue
+
                 else:
                     # Fallback try method name directly
                     method = getattr(self, action, None)

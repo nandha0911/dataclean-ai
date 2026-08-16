@@ -418,7 +418,7 @@ class AIRecommender:
                     expected_improvement="Clean gender variables.",
                     category="G. Categorical"
                 ))
-            if top_category_pct > 90:
+            if top_category_pct is not None and top_category_pct > 90:
                 recommendations.append(self._build_rec(
                     column=col_name,
                     technique="Class Imbalance - Check Target",

@@ -192,6 +192,7 @@ export default function Recommendations() {
   const { currentDataset, analysisResult, recommendations, setRecommendations } = useAppStore();
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(null);
+  const [applyingAll, setApplyingAll] = useState(false);
   const [applied, setApplied] = useState(new Set());
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -214,6 +215,32 @@ export default function Recommendations() {
       fetchRecs();
     }
   }, [currentDataset?.id]);
+
+  const handleApplyAll = async () => {
+    if (!currentDataset?.id || !recommendations?.length) return;
+    setApplyingAll(true);
+    const pending = recommendations.filter(r => {
+      const key = `${r.column}-${r.technique}`;
+      return !applied.has(key);
+    });
+    const ops = pending.map(r => ({
+      column: r.column,
+      operation: r.technique?.toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_') || 'auto',
+      technique: r.technique,
+      params: {}
+    }));
+    try {
+      await cleanDataset(currentDataset.id, ops);
+      const newApplied = new Set(applied);
+      pending.forEach(r => newApplied.add(`${r.column}-${r.technique}`));
+      setApplied(newApplied);
+      toast.success(`✅ Applied ${pending.length} fixes successfully!`);
+    } catch (err) {
+      toast.error('Some fixes could not be applied. Try individually.');
+    } finally {
+      setApplyingAll(false);
+    }
+  };
 
   const handleApply = async (rec) => {
     if (!currentDataset?.id) return;
@@ -293,11 +320,24 @@ export default function Recommendations() {
               : 'Run the AI engine to get cleaning recommendations.'}
           </p>
         </div>
-        <button onClick={fetchRecs} disabled={loading}
-          className="btn-nd btn-nd-primary shadow-soft gap-2">
-          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-          {loading ? 'Analysing…' : 'Refresh'}
-        </button>
+        <div className="flex gap-3">
+          {recommendations?.length > 0 && (
+            <button
+              onClick={handleApplyAll}
+              disabled={applyingAll || applied.size === recommendations.length}
+              className="btn-nd shadow-soft gap-2 font-bold text-white"
+              style={{ background: applyingAll ? '#9aad9f' : '#7C9082' }}
+            >
+              <Zap size={16} className={applyingAll ? 'animate-pulse' : ''} />
+              {applyingAll ? 'Applying All…' : applied.size === recommendations.length ? '✓ All Applied' : `⚡ Apply All Fixes (${recommendations.length - applied.size})`}
+            </button>
+          )}
+          <button onClick={fetchRecs} disabled={loading}
+            className="btn-nd btn-nd-primary shadow-soft gap-2">
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            {loading ? 'Analysing…' : 'Refresh'}
+          </button>
+        </div>
       </motion.div>
 
       {/* Search */}
