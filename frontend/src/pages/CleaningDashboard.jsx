@@ -503,16 +503,7 @@ export default function CleaningDashboard() {
         </div>
       </div>
 
-      {/* Category legend pills */}
-      <div className="flex gap-2 flex-wrap">
-        {OPERATION_GROUPS.map(g => (
-          <span key={g.label}
-            className="px-2.5 py-0.5 rounded-full text-[10px] font-bold"
-            style={{ background: g.color + '18', color: g.color }}>
-            {g.label.split('.')[0].trim()}
-          </span>
-        ))}
-      </div>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left: Pipeline builder */}
