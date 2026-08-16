@@ -1,26 +1,64 @@
 /**
- * Nordic Recommendations
+ * Nordic Recommendations — Category-grouped with A–Y filter bar
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Brain, RefreshCw, Zap, ChevronDown, ChevronUp, CheckCircle, AlertTriangle, TrendingUp } from 'lucide-react';
+import {
+  Brain, RefreshCw, Zap, ChevronDown, ChevronUp,
+  CheckCircle, AlertTriangle, Filter, Search
+} from 'lucide-react';
 import NordicCard from '../components/ui/NordicCard';
 import useAppStore from '../store/useAppStore';
 import { getRecommendations, cleanDataset } from '../api/client';
 import AIChat from '../components/AIChat';
 import toast from 'react-hot-toast';
 
-const FILTERS = ['All', 'Missing', 'Outlier', 'Scaling', 'Structural'];
-const CAT_COLOR = { missing: '#7C9082', outlier: '#D4A373', encoding: '#C88272', scaling: '#7A8B99', structural: '#C88272' };
+// ── Category metadata A–Y ───────────────────────────────────────────────────
+const CATEGORIES = [
+  { id: 'all',   label: 'All',              color: '#7C9082' },
+  { id: 'A',     label: 'A. Profiling',     color: '#7A8B99' },
+  { id: 'B',     label: 'B. Missing Data',  color: '#C88272' },
+  { id: 'C',     label: 'C. Duplicates',    color: '#D4A373' },
+  { id: 'D',     label: 'D. Data Types',    color: '#7C9082' },
+  { id: 'E',     label: 'E. Numerical',     color: '#7A8B99' },
+  { id: 'F',     label: 'F. Outliers',      color: '#C88272' },
+  { id: 'G',     label: 'G. Categorical',   color: '#D4A373' },
+  { id: 'H',     label: 'H. Text',          color: '#7C9082' },
+  { id: 'I',     label: 'I. Date & Time',   color: '#7A8B99' },
+  { id: 'J',     label: 'J. Units',         color: '#C88272' },
+  { id: 'K',     label: 'K. Validation',    color: '#D4A373' },
+  { id: 'L',     label: 'L. Inconsistent',  color: '#7C9082' },
+  { id: 'M',     label: 'M. Contacts',      color: '#7A8B99' },
+  { id: 'N',     label: 'N. Integration',   color: '#C88272' },
+  { id: 'O',     label: 'O. Transformation',color: '#D4A373' },
+  { id: 'P',     label: 'P. Skewness',      color: '#7C9082' },
+  { id: 'Q',     label: 'Q. Imbalanced',    color: '#7A8B99' },
+  { id: 'R',     label: 'R. Noise',         color: '#C88272' },
+  { id: 'S',     label: 'S. Features',      color: '#D4A373' },
+  { id: 'T',     label: 'T. Encoding',      color: '#7C9082' },
+  { id: 'U',     label: 'U. Leakage',       color: '#7A8B99' },
+  { id: 'V',     label: 'V. Privacy',       color: '#C88272' },
+  { id: 'W',     label: 'W. Time-series',   color: '#D4A373' },
+];
 
+function getCategoryColor(categoryStr) {
+  if (!categoryStr) return '#7C9082';
+  const letter = categoryStr.trim().charAt(0).toUpperCase();
+  const found = CATEGORIES.find(c => c.id === letter);
+  return found ? found.color : '#7C9082';
+}
+
+function getCategoryLetter(categoryStr) {
+  if (!categoryStr) return '?';
+  return categoryStr.trim().charAt(0).toUpperCase();
+}
+
+// ── Single Recommendation Card ───────────────────────────────────────────────
 function RecCard({ rec, index, applied, onApply, applying }) {
   const [open, setOpen] = useState(false);
-  const ac = CAT_COLOR[rec.category?.toLowerCase()] || '#7C9082';
-
-  // Fix field name: backend returns rec.technique (or rec.recommendation fallback)
+  const color = getCategoryColor(rec.category);
+  const letter = getCategoryLetter(rec.category);
   const techLabel = rec.technique || rec.recommendation || 'Auto Fix';
-
-  // Fix unformatted float: format to clean integer percentage
   const conf = typeof rec.confidence === 'number'
     ? (rec.confidence <= 1 ? Math.round(rec.confidence * 100) : Math.round(rec.confidence))
     : 85;
@@ -29,25 +67,34 @@ function RecCard({ rec, index, applied, onApply, applying }) {
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
+      transition={{ delay: Math.min(index * 0.03, 0.4) }}
       className={`bg-white rounded-3xl p-6 transition-all duration-300 ${applied ? 'border-2 border-[#7C9082]' : 'shadow-soft border border-gray-100'}`}
     >
       <div className="flex items-start justify-between gap-6 flex-wrap">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 mb-3">
-            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider" style={{ background: ac + '18', color: ac }}>
+          {/* Header row */}
+          <div className="flex items-center gap-3 mb-3 flex-wrap">
+            {/* Category badge */}
+            <span className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-extrabold text-white"
+              style={{ background: color }}>
+              {letter}
+            </span>
+            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider"
+              style={{ background: color + '18', color }}>
               {rec.category || 'Issue'}
             </span>
-            <span className="text-xl font-bold text-gray-900">{rec.column}</span>
+            <span className="text-xl font-bold text-gray-900">{rec.column || 'Dataset'}</span>
             {applied && <CheckCircle size={20} className="text-[#7C9082]" />}
           </div>
 
-          <div className="flex items-center gap-2 mb-4 text-sm font-medium text-gray-600">
-            <AlertTriangle size={16} className="text-[#C88272]" />
-            {rec.reason || rec.problem || 'Detected anomaly'}
+          {/* Reason */}
+          <div className="flex items-start gap-2 mb-4 text-sm font-medium text-gray-600">
+            <AlertTriangle size={16} className="text-[#C88272] mt-0.5 flex-shrink-0" />
+            <span>{rec.reason || rec.problem || 'Detected anomaly'}</span>
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Technique */}
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="text-sm text-gray-400 font-medium">Recommended fix:</span>
             <span className="px-4 py-1.5 bg-gray-50 rounded-xl text-sm font-bold text-gray-800 border border-gray-200 shadow-sm">
               ✨ {techLabel}
@@ -55,224 +102,297 @@ function RecCard({ rec, index, applied, onApply, applying }) {
           </div>
         </div>
 
-        <div className="w-56 p-5 bg-gray-50 rounded-2xl border border-gray-100">
+        {/* Confidence panel */}
+        <div className="w-52 p-5 bg-gray-50 rounded-2xl border border-gray-100 flex-shrink-0">
           <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
             <span>Confidence</span>
-            <span style={{ color: ac }}>{conf}%</span>
+            <span style={{ color }}>{conf}%</span>
           </div>
-          <div className="progress-bg mb-4">
-            <motion.div className="progress-fill" style={{ background: ac }}
-              initial={{ width: 0 }} animate={{ width: `${conf}%` }} transition={{ delay: index * 0.1 + 0.3 }} />
+          <div className="w-full h-2 bg-gray-200 rounded-full mb-4 overflow-hidden">
+            <motion.div
+              className="h-full rounded-full"
+              style={{ background: color }}
+              initial={{ width: 0 }}
+              animate={{ width: `${conf}%` }}
+              transition={{ duration: 0.8, delay: index * 0.03 }}
+            />
           </div>
           <button
-            onClick={onApply}
+            onClick={() => onApply(rec)}
             disabled={applied || applying}
-            className={`w-full py-3 rounded-xl font-bold text-sm transition-all shadow-sm ${
-              applied ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'text-white hover:opacity-90'
-            }`}
-            style={!applied ? { background: ac } : {}}
+            className="w-full py-2.5 rounded-xl text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            style={applied ? { background: '#7C908218', color: '#7C9082' } : { background: color, color: 'white' }}
           >
-            {applying ? 'Applying...' : applied ? 'Applied' : 'Apply Fix'}
+            {applied ? '✓ Applied' : applying ? 'Applying…' : '⚡ Apply Fix'}
           </button>
         </div>
       </div>
 
-      {(rec.reason || (rec.advantages && rec.advantages.length > 0)) && (
-        <div className="mt-6 pt-6 border-t border-gray-100">
-          <p className="text-sm text-gray-600 leading-relaxed mb-3">
-            <strong className="text-gray-900">Why?</strong> {rec.reason}
-          </p>
-          {(rec.advantages?.length > 0 || rec.disadvantages?.length > 0) && (
-            <>
-              <button onClick={() => setOpen(o => !o)} className="text-sm font-semibold text-gray-400 hover:text-gray-800 flex items-center gap-1 transition-colors">
-                {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />} {open ? 'Hide details' : 'Show details'}
-              </button>
-
-              <AnimatePresence>
-                {open && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                    <div className="grid grid-cols-2 gap-6 mt-4 p-5 bg-[#F7F6F3] rounded-2xl text-sm">
-                      <div>
-                        <div className="font-bold text-[#7C9082] mb-2 flex items-center gap-2">Pros</div>
-                        <ul className="space-y-1 text-gray-600">
-                          {(rec.advantages || []).map((a, i) => <li key={i}>• {a}</li>)}
-                        </ul>
-                      </div>
-                      <div>
-                        <div className="font-bold text-[#C88272] mb-2 flex items-center gap-2">Cons</div>
-                        <ul className="space-y-1 text-gray-600">
-                          {(rec.disadvantages || []).map((d, i) => <li key={i}>• {d}</li>)}
-                        </ul>
-                      </div>
+      {/* Expandable details */}
+      {(rec.advantages?.length > 0 || rec.disadvantages?.length > 0 || rec.alternatives?.length > 0) && (
+        <>
+          <button
+            onClick={() => setOpen(!open)}
+            className="mt-4 flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-gray-700 transition-colors"
+          >
+            {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {open ? 'Hide details' : 'View details'}
+          </button>
+          <AnimatePresence>
+            {open && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-100">
+                  {rec.advantages?.length > 0 && (
+                    <div>
+                      <div className="text-xs font-bold text-[#7C9082] uppercase mb-2">✅ Advantages</div>
+                      <ul className="space-y-1">
+                        {rec.advantages.map((a, i) => <li key={i} className="text-xs text-gray-600">• {a}</li>)}
+                      </ul>
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </>
-          )}
-        </div>
+                  )}
+                  {rec.disadvantages?.length > 0 && (
+                    <div>
+                      <div className="text-xs font-bold text-[#C88272] uppercase mb-2">⚠️ Disadvantages</div>
+                      <ul className="space-y-1">
+                        {rec.disadvantages.map((d, i) => <li key={i} className="text-xs text-gray-600">• {d}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {rec.alternatives?.length > 0 && (
+                    <div>
+                      <div className="text-xs font-bold text-[#D4A373] uppercase mb-2">🔄 Alternatives</div>
+                      <ul className="space-y-1">
+                        {rec.alternatives.map((alt, i) => <li key={i} className="text-xs text-gray-600">• {alt}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {rec.expected_improvement && (
+                    <div className="md:col-span-3">
+                      <div className="text-xs font-bold text-[#7A8B99] uppercase mb-1">📈 Expected Improvement</div>
+                      <div className="text-xs text-gray-600">{rec.expected_improvement}</div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
       )}
     </motion.div>
   );
 }
 
+// ── Main Page ────────────────────────────────────────────────────────────────
 export default function Recommendations() {
-  const { currentDataset, recommendations: stored, setRecommendations, setDataset } = useAppStore();
-  const [recs, setRecs]       = useState(stored || []);
-  const [filter, setFilter]   = useState('All');
-  const [applied, setApplied] = useState(new Set());
+  const { currentDataset, analysisResult, recommendations, setRecommendations } = useAppStore();
   const [loading, setLoading] = useState(false);
-  const [applyingIdx, setApplyingIdx] = useState(null);
-
-  useEffect(() => {
-    if (currentDataset?.id && (!stored || stored.length === 0)) {
-      fetchRecs();
-    } else if (stored?.length) {
-      setRecs(stored);
-    }
-  }, [currentDataset?.id]);
+  const [applying, setApplying] = useState(null);
+  const [applied, setApplied] = useState(new Set());
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchRecs = async () => {
     if (!currentDataset?.id) return;
     setLoading(true);
     try {
       const res = await getRecommendations(currentDataset.id);
-      setRecs(res.data || []);
-      setRecommendations(res.data || []);
+      setRecommendations(res.data);
     } catch (err) {
-      toast.error('Failed to load recommendations');
-      setRecs([]);
+      toast.error('Failed to fetch recommendations');
     } finally {
       setLoading(false);
     }
   };
 
-  const applyOne = async (rec, index) => {
-    if (!currentDataset?.id) return toast.error('No dataset loaded');
-    const tech = rec.technique || rec.recommendation || 'mean_imputation';
-    const ops = [{ column: rec.column, operation: tech, params: {} }];
-    setApplyingIdx(index);
+  useEffect(() => {
+    if (currentDataset?.id && (!recommendations || recommendations.length === 0)) {
+      fetchRecs();
+    }
+  }, [currentDataset?.id]);
+
+  const handleApply = async (rec) => {
+    if (!currentDataset?.id) return;
+    const key = `${rec.column}-${rec.technique}`;
+    setApplying(key);
     try {
-      const res = await cleanDataset(currentDataset.id, { operations: ops });
-      setDataset({
-        ...currentDataset,
-        rows: res.data.cleaned_rows ?? currentDataset.rows,
-        cols: res.data.cleaned_cols ?? currentDataset.cols,
-        preview: res.data.original_preview || currentDataset.preview,
-        cleanedPreview: res.data.preview,
-        delta: res.data.delta,
-        isCleaned: true,
-      });
-      setApplied(prev => new Set([...prev, index]));
-      toast.success(`Applied fix for ${rec.column}`);
+      const operation = rec.technique?.toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_') || 'auto';
+      await cleanDataset(currentDataset.id, [{
+        column: rec.column,
+        operation,
+        technique: rec.technique,
+        params: {}
+      }]);
+      setApplied(prev => new Set([...prev, key]));
+      toast.success(`✅ ${rec.technique} applied to "${rec.column}"`);
     } catch (err) {
-      console.error('Apply fix error:', err);
-      toast.error('Failed to apply fix');
+      toast.error(`Failed to apply: ${rec.technique}`);
     } finally {
-      setApplyingIdx(null);
+      setApplying(null);
     }
   };
 
-  const applyAll = async () => {
-    if (!currentDataset?.id) return toast.error('No dataset loaded');
-    if (!filtered.length) return toast.error('No recommendations to apply');
+  // Derive unique categories from loaded recs
+  const presentCategories = useMemo(() => {
+    if (!recommendations?.length) return [];
+    const letters = new Set(recommendations.map(r => getCategoryLetter(r.category)));
+    return CATEGORIES.filter(c => c.id === 'all' || letters.has(c.id));
+  }, [recommendations]);
 
-    // Fix field name mapping for backend Pydantic schema: operation (NOT technique)
-    const ops = filtered.map(r => ({
-      column: r.column,
-      operation: r.technique || r.recommendation || 'mean_imputation',
-      params: {},
-    }));
+  // Filter recs by category + search
+  const filtered = useMemo(() => {
+    if (!recommendations) return [];
+    return recommendations.filter(r => {
+      const matchCat = activeCategory === 'all' || getCategoryLetter(r.category) === activeCategory;
+      const q = searchQuery.toLowerCase();
+      const matchSearch = !q || (r.column || '').toLowerCase().includes(q)
+        || (r.technique || '').toLowerCase().includes(q)
+        || (r.reason || '').toLowerCase().includes(q)
+        || (r.category || '').toLowerCase().includes(q);
+      return matchCat && matchSearch;
+    });
+  }, [recommendations, activeCategory, searchQuery]);
 
-    setLoading(true);
-    try {
-      const res = await cleanDataset(currentDataset.id, { operations: ops });
-      setDataset({
-        ...currentDataset,
-        rows: res.data.cleaned_rows ?? currentDataset.rows,
-        cols: res.data.cleaned_cols ?? currentDataset.cols,
-        preview: res.data.original_preview || currentDataset.preview,
-        cleanedPreview: res.data.preview,
-        delta: res.data.delta,
-        isCleaned: true,
-      });
-      setApplied(new Set(filtered.map((_, i) => i)));
-      toast.success(`Successfully applied ${filtered.length} fixes!`);
-    } catch (err) {
-      console.error('Apply all error:', err);
-      toast.error(err?.message || 'Failed to apply fixes');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Group filtered by category letter
+  const grouped = useMemo(() => {
+    const groups = {};
+    filtered.forEach(r => {
+      const letter = getCategoryLetter(r.category);
+      const cat = CATEGORIES.find(c => c.id === letter) || { label: r.category || 'Other', color: '#7C9082', id: letter };
+      if (!groups[letter]) groups[letter] = { meta: cat, items: [] };
+      groups[letter].items.push(r);
+    });
+    return Object.values(groups).sort((a, b) => a.meta.id.localeCompare(b.meta.id));
+  }, [filtered]);
 
-  const filtered = recs.filter(r => filter === 'All' || (r.category && r.category.toLowerCase() === filter.toLowerCase()));
+  if (!currentDataset) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center text-gray-300">
+          <Brain size={32} />
+        </div>
+        <h2 className="text-2xl font-bold text-gray-800">No Dataset Loaded</h2>
+        <p className="text-gray-500 font-medium">Upload a dataset first to get AI recommendations.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col gap-8 max-w-5xl mx-auto">
+    <div className="flex flex-col gap-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex justify-between items-end flex-wrap gap-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-end justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">AI Recommendations</h2>
           <p className="text-gray-500 font-medium">
-            {recs.length > 0 ? `${recs.length} suggested actions for your dataset.` : 'No dataset issues detected yet.'}
+            {recommendations?.length
+              ? `${recommendations.length} recommendations across ${presentCategories.length - 1} categories`
+              : 'Run the AI engine to get cleaning recommendations.'}
           </p>
         </div>
-        <div className="flex gap-3">
-          <button onClick={fetchRecs} disabled={loading || !currentDataset?.id} className="btn-nd btn-nd-secondary">
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
-          </button>
-          <button onClick={applyAll} disabled={loading || !filtered.length} className="btn-nd btn-nd-primary">
-            <Zap size={14} /> Apply All Fixes
-          </button>
-        </div>
-      </div>
+        <button onClick={fetchRecs} disabled={loading}
+          className="btn-nd btn-nd-primary shadow-soft gap-2">
+          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          {loading ? 'Analysing…' : 'Refresh'}
+        </button>
+      </motion.div>
 
-      {/* Filters */}
-      {recs.length > 0 && (
+      {/* Search */}
+      {recommendations?.length > 0 && (
+        <div className="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl px-4 py-3 shadow-soft">
+          <Search size={16} className="text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by column, technique, or category…"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="flex-1 text-sm font-medium text-gray-700 outline-none bg-transparent"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="text-gray-400 hover:text-gray-700 text-xs">✕ Clear</button>
+          )}
+        </div>
+      )}
+
+      {/* Category filter pills */}
+      {presentCategories.length > 1 && (
         <div className="flex gap-2 flex-wrap">
-          {FILTERS.map(f => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
-                filter === f
-                  ? 'bg-gray-900 text-white shadow-md'
-                  : 'bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-800 shadow-sm border border-gray-100'
-              }`}>
-              {f}
+          <Filter size={16} className="text-gray-400 self-center" />
+          {presentCategories.map(cat => (
+            <button key={cat.id}
+              onClick={() => setActiveCategory(cat.id)}
+              className="px-3 py-1.5 rounded-full text-xs font-bold transition-all"
+              style={activeCategory === cat.id
+                ? { background: cat.color, color: 'white' }
+                : { background: cat.color + '15', color: cat.color }}>
+              {cat.label}
+              {cat.id !== 'all' && recommendations && (
+                <span className="ml-1 opacity-70">
+                  ({recommendations.filter(r => getCategoryLetter(r.category) === cat.id).length})
+                </span>
+              )}
             </button>
           ))}
         </div>
       )}
 
-      {/* Cards list */}
-      <div className="flex flex-col space-y-6">
-        {loading ? (
-          <div className="flex flex-col items-center py-20 gap-4 text-gray-400">
-            <Brain size={48} className="animate-pulse text-[#7A8B99]" />
-            <p className="font-semibold text-lg">Analyzing your data...</p>
-          </div>
-        ) : filtered.length > 0 ? (
-          filtered.map((rec, i) => (
-            <RecCard
-              key={i}
-              rec={rec}
-              index={i}
-              applied={applied.has(i)}
-              applying={applyingIdx === i}
-              onApply={() => applyOne(rec, i)}
-            />
-          ))
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20 gap-4 text-center bg-white rounded-3xl shadow-soft border border-gray-100">
-            <Brain size={40} className="text-gray-300" />
-            <h3 className="text-xl font-bold text-gray-700">No Recommendations Available</h3>
-            <p className="text-gray-400 font-medium text-sm max-w-sm">
-              {currentDataset ? 'Your dataset is clean or analysis needs to be refreshed.' : 'Upload a dataset to generate AI recommendations.'}
+      {/* Content */}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <RefreshCw size={40} className="animate-spin text-[#7C9082]" />
+          <p className="text-gray-500 font-medium">AI engine analysing dataset…</p>
+        </div>
+      ) : grouped.length > 0 ? (
+        <div className="flex flex-col gap-10">
+          {grouped.map(group => (
+            <div key={group.meta.id}>
+              {/* Category section header */}
+              <div className="flex items-center gap-3 mb-4">
+                <span className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-extrabold text-white"
+                  style={{ background: group.meta.color }}>
+                  {group.meta.id}
+                </span>
+                <h3 className="text-lg font-extrabold text-gray-800">{group.meta.label}</h3>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold text-white"
+                  style={{ background: group.meta.color }}>
+                  {group.items.length}
+                </span>
+                <div className="flex-1 h-px bg-gray-100" />
+              </div>
+              <div className="flex flex-col gap-4">
+                {group.items.map((rec, i) => {
+                  const key = `${rec.column}-${rec.technique}`;
+                  return (
+                    <RecCard key={key} rec={rec} index={i}
+                      applied={applied.has(key)}
+                      applying={applying === key}
+                      onApply={handleApply} />
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <NordicCard color="sage" className="py-16">
+          <div className="flex flex-col items-center gap-4 text-gray-400">
+            <Zap size={40} className="opacity-40" />
+            <p className="font-semibold">
+              {recommendations?.length > 0 ? 'No results match your filter.' : 'No recommendations yet.'}
             </p>
+            {!recommendations?.length && (
+              <button onClick={fetchRecs} className="btn-nd btn-nd-primary text-sm">
+                Run AI Analysis
+              </button>
+            )}
           </div>
-        )}
-      </div>
+        </NordicCard>
+      )}
 
+      {/* AI Chat */}
       <AIChat />
     </div>
   );
