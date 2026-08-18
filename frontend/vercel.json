@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://YOUR_BACKEND_URL.onrender.com/api/:path*"
+      "destination": "https://nandha2425-dataclean-ai-backend.hf.space/api/:path*"
     },
     {
       "source": "/(.*)",
