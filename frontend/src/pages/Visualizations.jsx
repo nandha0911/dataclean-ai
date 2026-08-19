@@ -1,7 +1,7 @@
 /**
  * Visualizations Suite — 80-Chart Interactive Studio with Full Axis & Metric Customization
  */
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   Search, BarChart2, Grid, Sliders, ChevronRight,
