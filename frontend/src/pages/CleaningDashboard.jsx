@@ -313,8 +313,8 @@ function TechniquePicker({ value, onChange }) {
 
       {open && (
         <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden" style={{ minWidth: 340 }}>
-          {/* Search */}
-          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100 bg-white sticky top-0">
+          {/* Search Header - Sticky Top with z-20 */}
+          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100 bg-white sticky top-0 z-20 shadow-xs">
             <Search size={14} className="text-gray-400 flex-shrink-0" />
             <input autoFocus type="text" placeholder="Search all techniques (A–Y)…"
               value={query} onChange={e => setQuery(e.target.value)}
@@ -323,7 +323,7 @@ function TechniquePicker({ value, onChange }) {
             {query && <button onClick={() => setQuery('')} className="text-gray-400 hover:text-gray-600 text-xs">✕</button>}
           </div>
 
-          {/* Count */}
+          {/* Count bar */}
           <div className="px-3 py-1 bg-gray-50 text-[10px] text-gray-400 font-semibold border-b border-gray-100">
             {filtered.reduce((s, g) => s + g.options.length, 0)} techniques{query && ` matching "${query}"`}
           </div>
@@ -334,20 +334,25 @@ function TechniquePicker({ value, onChange }) {
               <div className="text-center py-8 text-xs text-gray-400">No techniques found for "{query}"</div>
             ) : (
               filtered.map(group => (
-                <div key={group.label}>
-                  <div className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider sticky top-0"
-                    style={{ background: group.color + '18', color: group.color }}>
-                    {group.label}
+                <div key={group.label} className="relative">
+                  {/* Sticky Group Header with Solid Opaque Background & Border */}
+                  <div
+                    className="px-3 py-2 text-[10px] font-extrabold uppercase tracking-wider sticky top-0 z-10 bg-white border-y border-gray-100 flex items-center gap-2 shadow-xs"
+                  >
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: group.color }} />
+                    <span style={{ color: group.color }}>{group.label}</span>
                   </div>
-                  {group.options.map(opt => (
-                    <button key={opt.value + opt.label} type="button"
-                      onClick={() => { onChange(opt.value); setOpen(false); setQuery(''); }}
-                      className={`w-full text-left px-5 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                        value === opt.value ? 'font-bold bg-[#F2F5F3] text-[#7C9082]' : 'text-gray-700'
-                      }`}>
-                      {opt.label}
-                    </button>
-                  ))}
+                  <div className="py-1 bg-white">
+                    {group.options.map(opt => (
+                      <button key={opt.value + opt.label} type="button"
+                        onClick={() => { onChange(opt.value); setOpen(false); setQuery(''); }}
+                        className={`w-full text-left px-5 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                          value === opt.value ? 'font-bold bg-[#F2F5F3] text-[#7C9082]' : 'text-gray-700'
+                        }`}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               ))
             )}
