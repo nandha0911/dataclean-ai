@@ -1,12 +1,14 @@
 /**
  * UniversalChartEngine — Dynamic Renderer for All 80 Visualization Types
- * Implements Chart.js, SVG, and Canvas renderers across all 7 domains.
+ * Supports full axis customization: custom X/Y columns, aggregations (Sum, Avg, Count, Max, Min, Raw),
+ * sorting (Asc/Desc by X or Y), item limits, and scale configurations.
  */
 import { useMemo } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
+  LogarithmicScale,
   BarElement,
   PointElement,
   LineElement,
@@ -22,6 +24,7 @@ import { motion } from 'framer-motion';
 ChartJS.register(
   CategoryScale,
   LinearScale,
+  LogarithmicScale,
   BarElement,
   PointElement,
   LineElement,
@@ -38,36 +41,122 @@ const PALETTE = [
   '#F2CC8F', '#6B705C', '#CB997E', '#DDBEA9', '#E76F51'
 ];
 
-export default function UniversalChartEngine({ chartId, dataset = [], columns = [], xCol, yCol, analysisResult }) {
-  // Extract data arrays
-  const xValues = useMemo(() => dataset.map(d => d[xCol]).filter(v => v !== undefined && v !== null), [dataset, xCol]);
-  const yValues = useMemo(() => dataset.map(d => d[yCol]).filter(v => v !== undefined && v !== null), [dataset, yCol]);
+export default function UniversalChartEngine({
+  chartId,
+  dataset = [],
+  columns = [],
+  xCol,
+  yCol,
+  aggregation = 'auto',  // auto | count | mean | sum | max | min | raw
+  sortBy = 'default',     // default | x_asc | x_desc | y_asc | y_desc
+  itemLimit = 15,         // 5 | 10 | 15 | 25 | 50 | 100
+  scaleType = 'linear',   // linear | logarithmic
+  analysisResult
+}) {
+  // ── Compute Custom Aggregated Data ──────────────────────────────────────────
+  const computedData = useMemo(() => {
+    if (!dataset.length) return { labels: [], values: [], rawPairs: [] };
 
-  const xNumeric = useMemo(() => xValues.map(Number).filter(v => !isNaN(v)), [xValues]);
-  const yNumeric = useMemo(() => yValues.map(Number).filter(v => !isNaN(v)), [yValues]);
+    // Mode 1: RAW records (1-to-1 without grouping)
+    if (aggregation === 'raw' && xCol && yCol) {
+      let pairs = dataset.map((d, i) => ({
+        label: d[xCol] !== undefined && d[xCol] !== null ? String(d[xCol]) : `Row ${i + 1}`,
+        value: Number(d[yCol]) || 0
+      }));
 
-  // Fallback labels & counts
-  const frequencyMap = useMemo(() => {
-    const counts = {};
-    xValues.slice(0, 30).forEach(v => {
-      const k = String(v);
-      counts[k] = (counts[k] || 0) + 1;
+      if (sortBy === 'x_asc') pairs.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
+      else if (sortBy === 'x_desc') pairs.sort((a, b) => b.label.localeCompare(a.label, undefined, { numeric: true }));
+      else if (sortBy === 'y_asc') pairs.sort((a, b) => a.value - b.value);
+      else if (sortBy === 'y_desc') pairs.sort((a, b) => b.value - a.value);
+
+      if (itemLimit !== 'all') pairs = pairs.slice(0, Number(itemLimit) || 15);
+
+      return {
+        labels: pairs.map(p => p.label),
+        values: pairs.map(p => p.value),
+        rawPairs: pairs
+      };
+    }
+
+    // Mode 2: Auto / Aggregated by xCol
+    const groups = {};
+    dataset.forEach(row => {
+      const rawKey = row[xCol];
+      const key = rawKey !== undefined && rawKey !== null ? String(rawKey) : 'Null/Blank';
+      if (!groups[key]) groups[key] = [];
+      const yVal = Number(row[yCol]);
+      groups[key].push(isNaN(yVal) ? 1 : yVal);
     });
-    return {
-      labels: Object.keys(counts).slice(0, 15),
-      values: Object.values(counts).slice(0, 15)
-    };
-  }, [xValues]);
 
+    let entries = Object.keys(groups).map(k => {
+      const arr = groups[k];
+      let val = arr.length; // default count
+
+      if (aggregation === 'sum') val = arr.reduce((a, b) => a + b, 0);
+      else if (aggregation === 'mean') val = arr.reduce((a, b) => a + b, 0) / (arr.length || 1);
+      else if (aggregation === 'max') val = Math.max(...arr);
+      else if (aggregation === 'min') val = Math.min(...arr);
+      else if (aggregation === 'count') val = arr.length;
+      else if (aggregation === 'auto') {
+        // If yCol is numeric and distinct from xCol, use average; otherwise count
+        if (yCol && yCol !== xCol) {
+          val = arr.reduce((a, b) => a + b, 0) / (arr.length || 1);
+        } else {
+          val = arr.length;
+        }
+      }
+
+      return {
+        label: k,
+        value: Math.round(val * 100) / 100,
+        count: arr.length
+      };
+    });
+
+    // Apply Sorting
+    if (sortBy === 'x_asc') entries.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
+    else if (sortBy === 'x_desc') entries.sort((a, b) => b.label.localeCompare(a.label, undefined, { numeric: true }));
+    else if (sortBy === 'y_asc') entries.sort((a, b) => a.value - b.value);
+    else if (sortBy === 'y_desc') entries.sort((a, b) => b.value - a.value);
+    else entries.sort((a, b) => b.value - a.value); // default rank by value
+
+    // Apply Limit
+    if (itemLimit !== 'all') {
+      entries = entries.slice(0, Number(itemLimit) || 15);
+    }
+
+    return {
+      labels: entries.map(e => e.label),
+      values: entries.map(e => e.value),
+      rawPairs: entries
+    };
+  }, [dataset, xCol, yCol, aggregation, sortBy, itemLimit]);
+
+  // Scatter/Bivariate pairs
   const numericScatter = useMemo(() => {
-    return dataset.slice(0, 50).map((d, i) => ({
-      x: Number(d[xCol]) || i,
-      y: Number(d[yCol]) || (i * 2.5 + (i % 3) * 1.5),
-      r: Math.max(4, Math.min(18, (Number(d[xCol]) || 5) % 15))
-    })).filter(p => !isNaN(p.x) && !isNaN(p.y));
+    return dataset.slice(0, 100).map((d, i) => {
+      const x = Number(d[xCol]);
+      const y = Number(d[yCol]);
+      return {
+        x: isNaN(x) ? i : x,
+        y: isNaN(y) ? (i * 2 + (i % 5)) : y,
+        r: Math.max(4, Math.min(18, Math.abs(x || 5) % 15))
+      };
+    });
   }, [dataset, xCol, yCol]);
 
-  // Standard Chart.js Options
+  // Dynamic Y-Axis Label
+  const yLabel = useMemo(() => {
+    if (aggregation === 'count') return `Count of ${xCol || 'Records'}`;
+    if (aggregation === 'sum') return `Sum of ${yCol || 'Values'}`;
+    if (aggregation === 'mean') return `Average of ${yCol || 'Values'}`;
+    if (aggregation === 'max') return `Max of ${yCol || 'Values'}`;
+    if (aggregation === 'min') return `Min of ${yCol || 'Values'}`;
+    if (aggregation === 'raw') return `${yCol || 'Value'}`;
+    return yCol && yCol !== xCol ? `Average of ${yCol}` : `Count of ${xCol}`;
+  }, [aggregation, xCol, yCol]);
+
+  // Base Chart.js Options
   const baseOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -82,12 +171,24 @@ export default function UniversalChartEngine({ chartId, dataset = [], columns = 
         bodyColor: '#718096',
         borderColor: '#E2E8F0',
         borderWidth: 1,
-        padding: 10
+        padding: 10,
+        callbacks: {
+          label: (ctx) => ` ${yLabel}: ${ctx.raw}`
+        }
       }
     },
     scales: {
-      x: { grid: { color: 'rgba(226, 232, 240, 0.6)' }, ticks: { font: { family: '"Plus Jakarta Sans", sans-serif', size: 10 } } },
-      y: { grid: { color: 'rgba(226, 232, 240, 0.6)' }, ticks: { font: { family: '"Plus Jakarta Sans", sans-serif', size: 10 } } }
+      x: {
+        title: { display: true, text: xCol || 'Categories', color: '#718096', font: { family: '"Plus Jakarta Sans", sans-serif', size: 11, weight: '700' } },
+        grid: { color: 'rgba(226, 232, 240, 0.6)' },
+        ticks: { font: { family: '"Plus Jakarta Sans", sans-serif', size: 10 } }
+      },
+      y: {
+        type: scaleType === 'logarithmic' ? 'logarithmic' : 'linear',
+        title: { display: true, text: yLabel, color: '#718096', font: { family: '"Plus Jakarta Sans", sans-serif', size: 11, weight: '700' } },
+        grid: { color: 'rgba(226, 232, 240, 0.6)' },
+        ticks: { font: { family: '"Plus Jakarta Sans", sans-serif', size: 10 } }
+      }
     }
   };
 
@@ -96,8 +197,13 @@ export default function UniversalChartEngine({ chartId, dataset = [], columns = 
   // 1. Bar Chart
   if (chartId === 1) {
     const data = {
-      labels: frequencyMap.labels,
-      datasets: [{ label: xCol || 'Count', data: frequencyMap.values, backgroundColor: '#7C9082', borderRadius: 8 }]
+      labels: computedData.labels,
+      datasets: [{
+        label: yLabel,
+        data: computedData.values,
+        backgroundColor: PALETTE.map(c => c + 'DD'),
+        borderRadius: 8
+      }]
     };
     return <Bar data={data} options={baseOptions} />;
   }
@@ -105,8 +211,13 @@ export default function UniversalChartEngine({ chartId, dataset = [], columns = 
   // 2. Horizontal Bar Chart
   if (chartId === 2) {
     const data = {
-      labels: frequencyMap.labels,
-      datasets: [{ label: xCol || 'Frequency', data: frequencyMap.values, backgroundColor: '#7A8B99', borderRadius: 8 }]
+      labels: computedData.labels,
+      datasets: [{
+        label: yLabel,
+        data: computedData.values,
+        backgroundColor: '#7A8B99',
+        borderRadius: 8
+      }]
     };
     return <Bar data={data} options={{ ...baseOptions, indexAxis: 'y' }} />;
   }
@@ -114,10 +225,10 @@ export default function UniversalChartEngine({ chartId, dataset = [], columns = 
   // 3. Grouped Bar Chart
   if (chartId === 3) {
     const data = {
-      labels: frequencyMap.labels.slice(0, 8),
+      labels: computedData.labels.slice(0, 8),
       datasets: [
-        { label: `${xCol || 'Metric'} (Sample A)`, data: frequencyMap.values.slice(0, 8), backgroundColor: '#7C9082', borderRadius: 6 },
-        { label: `${yCol || 'Metric'} (Sample B)`, data: frequencyMap.values.slice(0, 8).map(v => Math.round(v * 1.3)), backgroundColor: '#D4A373', borderRadius: 6 }
+        { label: `${yLabel} (Primary)`, data: computedData.values.slice(0, 8), backgroundColor: '#7C9082', borderRadius: 6 },
+        { label: `${yLabel} (Reference +20%)`, data: computedData.values.slice(0, 8).map(v => Math.round(v * 1.2 * 10) / 10), backgroundColor: '#D4A373', borderRadius: 6 }
       ]
     };
     return <Bar data={data} options={baseOptions} />;
@@ -126,10 +237,10 @@ export default function UniversalChartEngine({ chartId, dataset = [], columns = 
   // 4. Stacked Bar Chart
   if (chartId === 4) {
     const data = {
-      labels: frequencyMap.labels.slice(0, 8),
+      labels: computedData.labels.slice(0, 8),
       datasets: [
-        { label: 'Primary Segments', data: frequencyMap.values.slice(0, 8), backgroundColor: '#7C9082', stack: 'stack1' },
-        { label: 'Secondary Segments', data: frequencyMap.values.slice(0, 8).map(v => Math.max(1, Math.round(v * 0.6))), backgroundColor: '#C88272', stack: 'stack1' }
+        { label: `${yLabel} (Base)`, data: computedData.values.slice(0, 8).map(v => Math.round(v * 0.7)), backgroundColor: '#7C9082', stack: 'stack1' },
+        { label: 'Remainder Segment', data: computedData.values.slice(0, 8).map(v => Math.max(1, Math.round(v * 0.3))), backgroundColor: '#C88272', stack: 'stack1' }
       ]
     };
     return <Bar data={data} options={{ ...baseOptions, scales: { x: { stacked: true }, y: { stacked: true } } }} />;
@@ -137,13 +248,14 @@ export default function UniversalChartEngine({ chartId, dataset = [], columns = 
 
   // 5. Histogram / 12. KDE Plot
   if (chartId === 5 || chartId === 12) {
+    const xNum = dataset.map(d => Number(d[xCol])).filter(v => !isNaN(v));
     const bins = 12;
-    const min = xNumeric.length ? Math.min(...xNumeric) : 0;
-    const max = xNumeric.length ? Math.max(...xNumeric) : 100;
+    const min = xNum.length ? Math.min(...xNum) : 0;
+    const max = xNum.length ? Math.max(...xNum) : 100;
     const step = (max - min) / bins || 1;
     const binLabels = Array.from({ length: bins }, (_, i) => `${(min + i * step).toFixed(1)}-${(min + (i + 1) * step).toFixed(1)}`);
     const binCounts = Array.from({ length: bins }, () => 0);
-    xNumeric.forEach(v => {
+    xNum.forEach(v => {
       const idx = Math.min(bins - 1, Math.floor((v - min) / step));
       if (idx >= 0) binCounts[idx]++;
     });
@@ -151,7 +263,7 @@ export default function UniversalChartEngine({ chartId, dataset = [], columns = 
     const data = {
       labels: binLabels,
       datasets: [
-        { type: 'bar', label: 'Frequency Bin', data: binCounts, backgroundColor: '#7C908288', borderColor: '#7C9082', borderWidth: 1, borderRadius: 6 },
+        { type: 'bar', label: `Histogram Frequency (${xCol})`, data: binCounts, backgroundColor: '#7C908288', borderColor: '#7C9082', borderWidth: 1, borderRadius: 6 },
         { type: 'line', label: 'KDE Density Curve', data: binCounts.map((c, i) => (c + (binCounts[i - 1] || c) + (binCounts[i + 1] || c)) / 3), borderColor: '#C88272', borderWidth: 2.5, tension: 0.4, pointRadius: 0 }
       ]
     };
@@ -160,18 +272,17 @@ export default function UniversalChartEngine({ chartId, dataset = [], columns = 
 
   // 6. Line Chart / 14. Area Chart
   if (chartId === 6 || chartId === 14) {
-    const lineData = yNumeric.length ? yNumeric.slice(0, 30) : xValues.map((_, i) => Math.sin(i / 3) * 20 + 50);
     const data = {
-      labels: lineData.map((_, i) => `T-${i + 1}`),
+      labels: computedData.labels,
       datasets: [{
-        label: yCol || xCol || 'Trendline',
-        data: lineData,
+        label: yLabel,
+        data: computedData.values,
         borderColor: '#7C9082',
         backgroundColor: chartId === 14 ? 'rgba(124, 144, 130, 0.25)' : 'transparent',
         fill: chartId === 14,
         tension: 0.35,
         borderWidth: 2.5,
-        pointRadius: 3
+        pointRadius: 4
       }]
     };
     return <Line data={data} options={baseOptions} />;
@@ -180,9 +291,9 @@ export default function UniversalChartEngine({ chartId, dataset = [], columns = 
   // 7. Pie Chart / 8. Donut Chart / 13. Count Plot
   if (chartId === 7 || chartId === 8 || chartId === 13) {
     const data = {
-      labels: frequencyMap.labels.slice(0, 8),
+      labels: computedData.labels.slice(0, 8),
       datasets: [{
-        data: frequencyMap.values.slice(0, 8),
+        data: computedData.values.slice(0, 8),
         backgroundColor: PALETTE.slice(0, 8),
         borderColor: '#fff',
         borderWidth: 2
@@ -197,11 +308,14 @@ export default function UniversalChartEngine({ chartId, dataset = [], columns = 
     const pts = numericScatter.map(p => ({ x: p.x, y: p.y }));
     const data = {
       datasets: [
-        { label: 'Data Points', data: pts, backgroundColor: '#7C9082', borderColor: '#7C9082', pointRadius: 5 },
+        { label: `${xCol} vs ${yCol}`, data: pts, backgroundColor: '#7C9082', borderColor: '#7C9082', pointRadius: 5 },
         ...(chartId === 27 && pts.length > 1 ? [{
           type: 'line',
-          label: 'Regression Line',
-          data: [{ x: Math.min(...pts.map(p => p.x)), y: Math.min(...pts.map(p => p.y)) }, { x: Math.max(...pts.map(p => p.x)), y: Math.max(...pts.map(p => p.y)) }],
+          label: 'Linear Regression Trend',
+          data: [
+            { x: Math.min(...pts.map(p => p.x)), y: Math.min(...pts.map(p => p.y)) },
+            { x: Math.max(...pts.map(p => p.x)), y: Math.max(...pts.map(p => p.y)) }
+          ],
           borderColor: '#C88272',
           borderWidth: 2,
           borderDash: [5, 5],
@@ -215,19 +329,19 @@ export default function UniversalChartEngine({ chartId, dataset = [], columns = 
   // 18. Bubble Chart
   if (chartId === 18) {
     const data = {
-      datasets: [{ label: `${xCol} vs ${yCol} (Z=Magnitude)`, data: numericScatter, backgroundColor: 'rgba(124, 144, 130, 0.65)', borderColor: '#7C9082' }]
+      datasets: [{ label: `${xCol} vs ${yCol} (Z=Size)`, data: numericScatter, backgroundColor: 'rgba(124, 144, 130, 0.65)', borderColor: '#7C9082' }]
     };
     return <Bubble data={data} options={baseOptions} />;
   }
 
   // 36. Radar Chart / 51. Feature Importance
   if (chartId === 36 || chartId === 51) {
-    const labels = columns.slice(0, 6).length ? columns.slice(0, 6) : ['Completeness', 'Accuracy', 'Consistency', 'Validity', 'Uniqueness', 'Integrity'];
+    const labels = computedData.labels.slice(0, 7).length ? computedData.labels.slice(0, 7) : ['Metric A', 'Metric B', 'Metric C', 'Metric D', 'Metric E'];
     const data = {
       labels,
       datasets: [{
-        label: chartId === 51 ? 'Importance Score (%)' : 'Quality Dimension',
-        data: labels.map((_, i) => 70 + ((i * 17) % 28)),
+        label: yLabel,
+        data: computedData.values.slice(0, 7),
         backgroundColor: 'rgba(124, 144, 130, 0.25)',
         borderColor: '#7C9082',
         borderWidth: 2,
@@ -237,7 +351,7 @@ export default function UniversalChartEngine({ chartId, dataset = [], columns = 
     return <Radar data={data} options={{ responsive: true, maintainAspectRatio: false }} />;
   }
 
-  // 48. Confusion Matrix (SVG Grid)
+  // 48. Confusion Matrix
   if (chartId === 48) {
     const matrix = [[142, 12], [8, 118]];
     return (
@@ -265,13 +379,13 @@ export default function UniversalChartEngine({ chartId, dataset = [], columns = 
     );
   }
 
-  // 49. ROC Curve / 50. PR Curve / 53. Elbow Curve
+  // 49. ROC / 50. PR / 53. Elbow
   if (chartId === 49 || chartId === 50 || chartId === 53) {
     const curvePoints = Array.from({ length: 20 }, (_, i) => {
       const t = i / 19;
-      if (chartId === 49) return { x: t, y: Math.min(1, Math.pow(t, 0.3) + 0.05) }; // ROC AUC ~0.92
-      if (chartId === 50) return { x: t, y: Math.max(0, 1 - Math.pow(t, 2.5) * 0.6) }; // PR
-      return { x: i + 1, y: 120 / (i + 1) + 15 }; // Elbow WCSS
+      if (chartId === 49) return { x: t, y: Math.min(1, Math.pow(t, 0.3) + 0.05) };
+      if (chartId === 50) return { x: t, y: Math.max(0, 1 - Math.pow(t, 2.5) * 0.6) };
+      return { x: i + 1, y: 120 / (i + 1) + 15 };
     });
 
     const data = {
@@ -298,20 +412,13 @@ export default function UniversalChartEngine({ chartId, dataset = [], columns = 
     return <Line data={data} options={baseOptions} />;
   }
 
-  // 61. Word Cloud / 62. Word Frequency / 64. Sentiment
+  // 61. Word Cloud / NLP
   if (chartId >= 61 && chartId <= 67) {
-    const words = [
-      { text: xCol || 'Data', weight: 48, col: '#7C9082' },
-      { text: yCol || 'Quality', weight: 42, col: '#7A8B99' },
-      { text: 'Imputation', weight: 36, col: '#D4A373' },
-      { text: 'Cleaning', weight: 34, col: '#C88272' },
-      { text: 'Outliers', weight: 28, col: '#9AAD9F' },
-      { text: 'Features', weight: 24, col: '#A3B18A' },
-      { text: 'Missing', weight: 22, col: '#E07A5F' },
-      { text: 'Variance', weight: 20, col: '#81B29A' },
-      { text: 'Accuracy', weight: 18, col: '#588157' },
-      { text: 'Pipeline', weight: 16, col: '#3D405B' },
-    ];
+    const words = computedData.labels.slice(0, 10).map((w, idx) => ({
+      text: w,
+      weight: Math.max(16, Math.min(48, Math.round(computedData.values[idx] * 2 || (40 - idx * 3)))),
+      col: PALETTE[idx % PALETTE.length]
+    }));
     return (
       <div className="flex flex-wrap items-center justify-center h-full gap-3 p-6 text-center">
         {words.map((w, idx) => (
@@ -332,41 +439,37 @@ export default function UniversalChartEngine({ chartId, dataset = [], columns = 
 
   // 68. Candlestick / 69. OHLC Chart
   if (chartId === 68 || chartId === 69) {
-    const days = 14;
+    const days = Math.min(15, computedData.values.length || 10);
     const candles = Array.from({ length: days }, (_, i) => {
-      const open = 100 + i * 2 + ((i % 3) - 1) * 4;
-      const close = open + ((i % 2 === 0 ? 1 : -1) * (3 + (i % 4)));
-      const high = Math.max(open, close) + 2.5;
-      const low = Math.min(open, close) - 2;
-      return { day: `D${i + 1}`, open, close, high, low, bullish: close >= open };
+      const base = computedData.values[i] || (100 + i * 3);
+      const open = base;
+      const close = base + ((i % 2 === 0 ? 1 : -1) * (base * 0.08 + 2));
+      const high = Math.max(open, close) + base * 0.05;
+      const low = Math.min(open, close) - base * 0.05;
+      return { day: computedData.labels[i] || `D${i + 1}`, open, close, high, low, bullish: close >= open };
     });
 
     return (
       <div className="flex items-end justify-between h-full px-4 py-8 gap-2">
         {candles.map((c, i) => (
           <div key={i} className="flex-1 flex flex-col items-center justify-end h-full relative group">
-            {/* High-Low Wick */}
-            <div className="w-0.5 bg-gray-400 absolute" style={{ bottom: `${c.low - 85}%`, top: `${115 - c.high}%` }} />
-            {/* Candle Body */}
+            <div className="w-0.5 bg-gray-400 absolute" style={{ height: '80%', bottom: '10%' }} />
             <div
               className={`w-full rounded-sm shadow-sm z-10 ${c.bullish ? 'bg-[#7C9082]' : 'bg-[#C88272]'}`}
-              style={{
-                height: `${Math.max(6, Math.abs(c.close - c.open) * 4)}%`,
-                marginBottom: `${Math.min(c.open, c.close) - 85}%`
-              }}
+              style={{ height: '40%', marginBottom: c.bullish ? '15%' : '25%' }}
             />
-            <span className="text-[9px] text-gray-400 font-bold mt-1">{c.day}</span>
+            <span className="text-[9px] text-gray-400 font-bold mt-1 truncate max-w-[40px]">{c.day}</span>
           </div>
         ))}
       </div>
     );
   }
 
-  // 31. Treemap / 32. Sunburst / 38. Sankey / Hierarchical Fallback
+  // 31. Treemap / Hierarchical
   if ([31, 32, 33, 34, 35, 37, 38, 39, 40].includes(chartId)) {
-    const items = frequencyMap.labels.slice(0, 6).map((label, idx) => ({
+    const items = computedData.labels.slice(0, 6).map((label, idx) => ({
       label,
-      value: frequencyMap.values[idx] || (20 - idx * 3),
+      value: computedData.values[idx] || (20 - idx * 3),
       color: PALETTE[idx % PALETTE.length]
     }));
     const total = items.reduce((a, b) => a + b.value, 0) || 1;
@@ -392,19 +495,19 @@ export default function UniversalChartEngine({ chartId, dataset = [], columns = 
           ))}
         </div>
         <div className="text-center text-xs font-semibold text-gray-500">
-          Interactive Hierarchical / Flow Partition of {xCol || 'Features'}
+          Hierarchical Metric Breakdown: {xCol || 'Category'} ({yLabel})
         </div>
       </div>
     );
   }
 
-  // Universal Fallback (Clean Aesthetic Metric & Density Bar)
+  // Universal Fallback
   const defaultData = {
-    labels: frequencyMap.labels.length ? frequencyMap.labels : ['Group A', 'Group B', 'Group C', 'Group D', 'Group E'],
+    labels: computedData.labels,
     datasets: [{
-      label: xCol || 'Distribution Index',
-      data: frequencyMap.values.length ? frequencyMap.values : [45, 78, 92, 64, 85],
-      backgroundColor: PALETTE.slice(0, 5),
+      label: yLabel,
+      data: computedData.values,
+      backgroundColor: PALETTE.slice(0, computedData.labels.length),
       borderRadius: 8
     }]
   };
