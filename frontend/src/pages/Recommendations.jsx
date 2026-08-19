@@ -189,7 +189,7 @@ function RecCard({ rec, index, applied, onApply, applying }) {
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function Recommendations() {
-  const { currentDataset, analysisResult, recommendations, setRecommendations } = useAppStore();
+  const { currentDataset, analysisResult, recommendations, setRecommendations, setDataset } = useAppStore();
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(null);
   const [applyingAll, setApplyingAll] = useState(false);
@@ -230,17 +230,24 @@ export default function Recommendations() {
       params: {}
     }));
     try {
-      await cleanDataset(currentDataset.id, ops);
+      const res = await cleanDataset(currentDataset.id, { operations: ops });
+      if (res?.data) {
+        setDataset({
+          ...currentDataset,
+          rows: res.data.cleaned_rows ?? currentDataset.rows,
+          cols: res.data.cleaned_cols ?? currentDataset.cols,
+          preview: res.data.original_preview || currentDataset.preview,
+          cleanedPreview: res.data.preview,
+          delta: res.data.delta,
+          isCleaned: true,
+        });
+      }
       const newApplied = new Set(applied);
       pending.forEach(r => newApplied.add(`${r.column}-${r.technique}`));
       setApplied(newApplied);
       toast.success(`✅ Applied ${pending.length} fixes successfully!`);
     } catch (err) {
-      // Still mark as applied even on partial failure (info ops cause 'errors' that are fine)
-      const newApplied = new Set(applied);
-      pending.forEach(r => newApplied.add(`${r.column}-${r.technique}`));
-      setApplied(newApplied);
-      toast.success(`✅ Fixes applied! (Some were informational assessments only)`);
+      toast.error('Some fixes could not be applied. Try individually.');
     } finally {
       setApplyingAll(false);
     }
@@ -252,12 +259,25 @@ export default function Recommendations() {
     setApplying(key);
     try {
       const operation = rec.technique?.toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_') || 'auto';
-      await cleanDataset(currentDataset.id, [{
-        column: rec.column,
-        operation,
-        technique: rec.technique,
-        params: {}
-      }]);
+      const res = await cleanDataset(currentDataset.id, {
+        operations: [{
+          column: rec.column,
+          operation,
+          technique: rec.technique,
+          params: {}
+        }]
+      });
+      if (res?.data) {
+        setDataset({
+          ...currentDataset,
+          rows: res.data.cleaned_rows ?? currentDataset.rows,
+          cols: res.data.cleaned_cols ?? currentDataset.cols,
+          preview: res.data.original_preview || currentDataset.preview,
+          cleanedPreview: res.data.preview,
+          delta: res.data.delta,
+          isCleaned: true,
+        });
+      }
       setApplied(prev => new Set([...prev, key]));
       toast.success(`✅ ${rec.technique} applied to "${rec.column}"`);
     } catch (err) {

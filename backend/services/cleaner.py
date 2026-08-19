@@ -16,45 +16,55 @@ from scipy import stats
 class DataCleaner:
     def mean_imputation(self, df: pd.DataFrame, column: str):
         try:
-            df[column].fillna(df[column].mean(), inplace=True)
+            num = pd.to_numeric(df[column], errors='coerce')
+            val = num.mean() if not pd.isna(num.mean()) else 0
+            df[column] = df[column].fillna(val)
         except: pass
         return df
 
     def median_imputation(self, df: pd.DataFrame, column: str):
         try:
-            df[column].fillna(df[column].median(), inplace=True)
+            num = pd.to_numeric(df[column], errors='coerce')
+            val = num.median() if not pd.isna(num.median()) else 0
+            df[column] = df[column].fillna(val)
         except: pass
         return df
 
     def mode_imputation(self, df: pd.DataFrame, column: str):
         try:
-            df[column].fillna(df[column].mode()[0], inplace=True)
+            modes = df[column].dropna().mode()
+            if not modes.empty:
+                df[column] = df[column].fillna(modes.iloc[0])
         except: pass
         return df
 
     def knn_imputation(self, df: pd.DataFrame, columns: list, k: int=5):
         try:
-            imputer = KNNImputer(n_neighbors=k)
-            df[columns] = imputer.fit_transform(df[columns])
+            cols = [c for c in columns if c in df.columns]
+            if cols:
+                imputer = KNNImputer(n_neighbors=k)
+                df[cols] = imputer.fit_transform(df[cols].select_dtypes(include=[np.number]))
         except: pass
         return df
 
     def mice_imputation(self, df: pd.DataFrame, columns: list):
         try:
-            imputer = IterativeImputer(random_state=42)
-            df[columns] = imputer.fit_transform(df[columns])
+            cols = [c for c in columns if c in df.columns]
+            if cols:
+                imputer = IterativeImputer(random_state=42)
+                df[cols] = imputer.fit_transform(df[cols].select_dtypes(include=[np.number]))
         except: pass
         return df
 
     def forward_fill(self, df: pd.DataFrame, column: str):
         try:
-            df[column].fillna(method='ffill', inplace=True)
+            df[column] = df[column].ffill()
         except: pass
         return df
 
     def backward_fill(self, df: pd.DataFrame, column: str):
         try:
-            df[column].fillna(method='bfill', inplace=True)
+            df[column] = df[column].bfill()
         except: pass
         return df
 

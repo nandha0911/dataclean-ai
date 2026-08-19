@@ -15,8 +15,10 @@ cleaner = DataCleaner()
 analyzer = DataAnalyzer()
 scorer = QualityScorer()
 
+from typing import Union, List, Any
+
 @router.post("/clean/{dataset_id}", response_model=CleaningResponse)
-async def clean_dataset(dataset_id: int, request: CleaningRequest, db: AsyncSession = Depends(get_db)):
+async def clean_dataset(dataset_id: int, request: Union[CleaningRequest, List[dict], dict], db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
     
@@ -28,7 +30,15 @@ async def clean_dataset(dataset_id: int, request: CleaningRequest, db: AsyncSess
     df_original = read_dataset(dataset.original_path)   # keep original for delta calc
     df = read_dataset(active_path)                       # this is what we actually clean
     
-    operations_list = [op.dict() for op in request.operations]
+    if isinstance(request, CleaningRequest):
+        operations_list = [op.dict() for op in request.operations]
+    elif isinstance(request, dict) and "operations" in request:
+        operations_list = request["operations"]
+    elif isinstance(request, list):
+        operations_list = request
+    else:
+        operations_list = []
+
     df_clean, report = cleaner.apply_cleaning_plan(df, operations_list)
 
     
