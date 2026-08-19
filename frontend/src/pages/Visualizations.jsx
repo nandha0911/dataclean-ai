@@ -1,421 +1,357 @@
 /**
- * Visualizations Suite — All-in-One Data Science & Quality Charts
- * Includes:
- *  - Missing Values Matrix & Completeness
- *  - Outlier Bar (IQR vs Z-Score)
- *  - 5-Number Box Plot Quartile Spread
- *  - Frequency Distribution Histogram
- *  - Categorical Class Balance Doughnut
- *  - Feature Correlation Heatmap Matrix
- *  - Interactive Bivariate X-Y Scatter Plot
- *  - Multi-dimensional Quality Radar
+ * Visualizations Suite — Complete 80-Chart Interactive Catalog & Dashboard
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  BarChart2, GitBranch, TrendingUp, AlertOctagon, RefreshCw,
-  ChevronDown, PieChart, ScatterChart as ScatterIcon, ShieldCheck,
-  Layers, Sliders
+  Search, RefreshCw, BarChart2, Layers, Grid, Sliders,
+  Sparkles, CheckCircle2, ChevronRight, Eye
 } from 'lucide-react';
 import NordicCard from '../components/ui/NordicCard';
-import MissingHeatmap from '../components/charts/MissingHeatmap';
-import CorrelationMatrix from '../components/charts/CorrelationMatrix';
-import DistributionPlot from '../components/charts/DistributionPlot';
-import BoxPlotChart from '../components/charts/BoxPlotChart';
-import QualityDashboard from '../components/charts/QualityDashboard';
-import ClassBalanceChart from '../components/charts/ClassBalanceChart';
-import ScatterPlotChart from '../components/charts/ScatterPlotChart';
-import BoxPlotSpreadChart from '../components/charts/BoxPlotSpreadChart';
+import UniversalChartEngine from '../components/charts/UniversalChartEngine';
 import useAppStore from '../store/useAppStore';
-import { getVisualizations } from '../api/client';
 import toast from 'react-hot-toast';
+
+// ── Complete 80 Chart Taxonomy ───────────────────────────────────────────────
+export const ALL_80_CHARTS = [
+  // 1. Basic & Distributions (1–14)
+  { id: 1, name: 'Bar Chart', category: 'Basic & Distributions', desc: 'Categorical frequency and metric comparisons' },
+  { id: 2, name: 'Horizontal Bar Chart', category: 'Basic & Distributions', desc: 'Ranking categories with long text labels' },
+  { id: 3, name: 'Grouped Bar Chart', category: 'Basic & Distributions', desc: 'Multi-category side-by-side metric comparison' },
+  { id: 4, name: 'Stacked Bar Chart', category: 'Basic & Distributions', desc: 'Part-to-whole segment distributions' },
+  { id: 5, name: 'Histogram', category: 'Basic & Distributions', desc: 'Continuous numeric frequency binning' },
+  { id: 6, name: 'Line Chart', category: 'Basic & Distributions', desc: 'Trend analysis across sequence or time series' },
+  { id: 7, name: 'Pie Chart', category: 'Basic & Distributions', desc: 'Proportional breakdown of parts to a whole' },
+  { id: 8, name: 'Donut Chart', category: 'Basic & Distributions', desc: 'Clean ring distribution with center metric' },
+  { id: 9, name: 'Scatter Plot', category: 'Basic & Distributions', desc: 'Bivariate relationship and correlation pattern' },
+  { id: 10, name: 'Box Plot', category: 'Basic & Distributions', desc: '5-number summary (Min, Q1, Median, Q3, Max)' },
+  { id: 11, name: 'Violin Plot', category: 'Basic & Distributions', desc: 'Kernel density and probability distribution shape' },
+  { id: 12, name: 'KDE Plot', category: 'Basic & Distributions', desc: 'Smoothed continuous probability density curve' },
+  { id: 13, name: 'Count Plot', category: 'Basic & Distributions', desc: 'Discrete observation count per category' },
+  { id: 14, name: 'Area Chart', category: 'Basic & Distributions', desc: 'Cumulative volume and magnitude over sequence' },
+
+  // 2. Relational & Statistical (15–30)
+  { id: 15, name: 'Heatmap', category: 'Relational & Statistical', desc: '2D matrix value intensity shading' },
+  { id: 16, name: 'Correlation Heatmap', category: 'Relational & Statistical', desc: 'Pairwise Pearson correlation coefficients' },
+  { id: 17, name: 'Pair Plot', category: 'Relational & Statistical', desc: 'Pairwise multivariate scatter grid' },
+  { id: 18, name: 'Bubble Chart', category: 'Relational & Statistical', desc: '3-variable relational plot (X, Y, Size)' },
+  { id: 19, name: 'Lollipop Chart', category: 'Relational & Statistical', desc: 'Clean line-to-dot ranking visualization' },
+  { id: 20, name: 'Dot Plot', category: 'Relational & Statistical', desc: 'Minimalist discrete data point positioning' },
+  { id: 21, name: 'ECDF Plot', category: 'Relational & Statistical', desc: 'Empirical cumulative distribution function' },
+  { id: 22, name: 'Rug Plot', category: 'Relational & Statistical', desc: 'Marginal 1D tick marks along axes' },
+  { id: 23, name: 'Strip Plot', category: 'Relational & Statistical', desc: 'Jittered single-axis categorical observations' },
+  { id: 24, name: 'Swarm Plot', category: 'Relational & Statistical', desc: 'Non-overlapping point distribution visualizer' },
+  { id: 25, name: 'QQ Plot', category: 'Relational & Statistical', desc: 'Quantile-Quantile normality validation' },
+  { id: 26, name: 'PP Plot', category: 'Relational & Statistical', desc: 'Probability-Probability cumulative assessment' },
+  { id: 27, name: 'Regression Plot', category: 'Relational & Statistical', desc: 'Scatter plot with best-fit trendline' },
+  { id: 28, name: 'Joint Plot', category: 'Relational & Statistical', desc: 'Bivariate scatter with marginal histograms' },
+  { id: 29, name: 'Residual Plot', category: 'Relational & Statistical', desc: 'Error residual distribution for linear models' },
+  { id: 30, name: 'Error Bar Plot', category: 'Relational & Statistical', desc: 'Confidence interval and standard error bands' },
+
+  // 3. Hierarchical & Flow (31–40)
+  { id: 31, name: 'Treemap', category: 'Hierarchical & Flow', desc: 'Nested rectangular space-filling hierarchy' },
+  { id: 32, name: 'Sunburst Chart', category: 'Hierarchical & Flow', desc: 'Radial multi-level hierarchical breakdown' },
+  { id: 33, name: 'Waterfall Chart', category: 'Hierarchical & Flow', desc: 'Cumulative incremental positive/negative steps' },
+  { id: 34, name: 'Funnel Chart', category: 'Hierarchical & Flow', desc: 'Sequential stage-by-stage conversion drop-off' },
+  { id: 35, name: 'Pareto Chart', category: 'Hierarchical & Flow', desc: '80/20 rule cumulative contribution frequency' },
+  { id: 36, name: 'Radar Chart', category: 'Hierarchical & Flow', desc: 'Multi-dimensional 360-degree quality radar' },
+  { id: 37, name: 'Parallel Coordinates', category: 'Hierarchical & Flow', desc: 'High-dimensional multi-axis feature lines' },
+  { id: 38, name: 'Sankey Diagram', category: 'Hierarchical & Flow', desc: 'Flow volume and node transformation transfer' },
+  { id: 39, name: 'Dendrogram', category: 'Hierarchical & Flow', desc: 'Hierarchical clustering tree structure' },
+  { id: 40, name: 'Network Graph', category: 'Hierarchical & Flow', desc: 'Entity nodes and relational edge connections' },
+
+  // 4. Geospatial & Maps (41–47)
+  { id: 41, name: 'Choropleth Map', category: 'Geospatial & Spatial', desc: 'Geographical regions shaded by metric' },
+  { id: 42, name: 'Point Map', category: 'Geospatial & Spatial', desc: 'Geocoded coordinate point markers' },
+  { id: 43, name: 'Bubble Map', category: 'Geospatial & Spatial', desc: 'Geographic bubbles scaled by metric value' },
+  { id: 44, name: 'Heat Map (Spatial)', category: 'Geospatial & Spatial', desc: 'Geographic density heatmap intensity' },
+  { id: 45, name: 'Hexbin Map', category: 'Geospatial & Spatial', desc: 'Hexagonal spatial bin aggregation' },
+  { id: 46, name: 'Density Map', category: 'Geospatial & Spatial', desc: 'Continuous spatial density contours' },
+  { id: 47, name: 'Flow Map', category: 'Geospatial & Spatial', desc: 'Origin-to-destination geographic paths' },
+
+  // 5. Machine Learning & Models (48–60)
+  { id: 48, name: 'Confusion Matrix', category: 'Machine Learning', desc: 'TP, FP, TN, FN classification performance' },
+  { id: 49, name: 'ROC Curve', category: 'Machine Learning', desc: 'Receiver operating characteristic & AUC' },
+  { id: 50, name: 'Precision-Recall Curve', category: 'Machine Learning', desc: 'Precision vs recall trade-off curve' },
+  { id: 51, name: 'Feature Importance Plot', category: 'Machine Learning', desc: 'Relative feature predictive influence' },
+  { id: 52, name: 'Decision Boundary', category: 'Machine Learning', desc: 'Classifier partition boundary in 2D space' },
+  { id: 53, name: 'Elbow Curve', category: 'Machine Learning', desc: 'Optimal cluster count (k) inertia inflection' },
+  { id: 54, name: 'Silhouette Plot', category: 'Machine Learning', desc: 'Cluster separation and cohesion quality' },
+  { id: 55, name: 'PCA Plot', category: 'Machine Learning', desc: 'Principal component dimension reduction' },
+  { id: 56, name: 't-SNE Plot', category: 'Machine Learning', desc: 'Non-linear manifold cluster visualization' },
+  { id: 57, name: 'UMAP Plot', category: 'Machine Learning', desc: 'Uniform manifold topological projection' },
+  { id: 58, name: 'SHAP Summary Plot', category: 'Machine Learning', desc: 'Shapley additive global feature impact' },
+  { id: 59, name: 'SHAP Dependence Plot', category: 'Machine Learning', desc: 'Feature value vs SHAP contribution value' },
+  { id: 60, name: 'Partial Dependence Plot', category: 'Machine Learning', desc: 'Marginal target effect of selected feature' },
+
+  // 6. Text & NLP Analytics (61–67)
+  { id: 61, name: 'Word Cloud', category: 'Text & NLP', desc: 'Term frequency scaled visual cloud' },
+  { id: 62, name: 'Word Frequency Plot', category: 'Text & NLP', desc: 'Top N vocabulary term occurrence bar' },
+  { id: 63, name: 'N-gram Visualization', category: 'Text & NLP', desc: 'Bigram and trigram phrase combinations' },
+  { id: 64, name: 'Sentiment Visualization', category: 'Text & NLP', desc: 'Positive, negative, neutral sentiment scores' },
+  { id: 65, name: 'Topic Visualization', category: 'Text & NLP', desc: 'LDA topic modeling word clusters' },
+  { id: 66, name: 'Text Similarity Heatmap', category: 'Text & NLP', desc: 'Cosine similarity matrix across text corpus' },
+  { id: 67, name: 'Word Embedding Plot', category: 'Text & NLP', desc: '2D semantic vector embedding space' },
+
+  // 7. Advanced & Specialized (68–80)
+  { id: 68, name: 'Candlestick Chart', category: 'Advanced & Specialized', desc: 'Financial Open-High-Low-Close price action' },
+  { id: 69, name: 'OHLC Chart', category: 'Advanced & Specialized', desc: 'Tick-based open-high-low-close bars' },
+  { id: 70, name: 'Streamgraph', category: 'Advanced & Specialized', desc: 'Organic flowing stacked area distribution' },
+  { id: 71, name: 'Ridgeline Plot', category: 'Advanced & Specialized', desc: 'Stacked density ridge distributions' },
+  { id: 72, name: 'Hexbin Plot', category: 'Advanced & Specialized', desc: 'Hexagonal 2D density aggregation' },
+  { id: 73, name: 'Contour Plot', category: 'Advanced & Specialized', desc: 'Topographical iso-level density contours' },
+  { id: 74, name: 'Chord Diagram', category: 'Advanced & Specialized', desc: 'Circular inter-entity matrix relationships' },
+  { id: 75, name: 'Marimekko Chart', category: 'Advanced & Specialized', desc: 'Variable-width mosaic bar distribution' },
+  { id: 76, name: 'Bump Chart', category: 'Advanced & Specialized', desc: 'Rank movement over sequential periods' },
+  { id: 77, name: 'Slope Chart', category: 'Advanced & Specialized', desc: 'Direct before vs after transition comparison' },
+  { id: 78, name: 'Bullet Chart', category: 'Advanced & Specialized', desc: 'Target metric performance vs threshold bands' },
+  { id: 79, name: 'Calendar Heatmap', category: 'Advanced & Specialized', desc: 'Day-by-day activity intensity calendar' },
+  { id: 80, name: 'Interactive Dashboard', category: 'Advanced & Specialized', desc: 'Unified multi-chart live monitoring panel' },
+];
+
+const CATEGORIES = [
+  'All 80 Visualizations',
+  'Basic & Distributions',
+  'Relational & Statistical',
+  'Hierarchical & Flow',
+  'Geospatial & Spatial',
+  'Machine Learning',
+  'Text & NLP',
+  'Advanced & Specialized'
+];
 
 export default function Visualizations() {
   const { currentDataset, analysisResult } = useAppStore();
 
-  const [vizData, setVizData]           = useState(null);
-  const [loading, setLoading]           = useState(false);
-  const [selectedCol, setSelectedCol]   = useState('');
-  const [scatterX, setScatterX]         = useState('');
-  const [scatterY, setScatterY]         = useState('');
-  const [activeTab, setActiveTab]       = useState('all'); // all | missing | distribution | correlation | quality
+  const [activeChartId, setActiveChartId] = useState(1);
+  const [activeCategory, setActiveCategory] = useState('All 80 Visualizations');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [xCol, setXCol] = useState('');
+  const [yCol, setYCol] = useState('');
+  const [dashboardMode, setDashboardMode] = useState(false);
 
-  // Derive column list from analysis result or preview
+  // Extract columns
   const columns = useMemo(() => {
     return analysisResult?.columns?.map(c => c.column_name)
       || (currentDataset?.preview?.length ? Object.keys(currentDataset.preview[0]) : []);
   }, [analysisResult, currentDataset]);
 
-  // Derive numeric columns
-  const numericColumns = useMemo(() => {
-    if (analysisResult?.columns) {
-      return analysisResult.columns
-        .filter(c => c.dtype === 'numeric' || c.dtype === 'float64' || c.dtype === 'int64')
-        .map(c => c.column_name);
-    }
-    return columns;
-  }, [analysisResult, columns]);
+  const dataset = useMemo(() => {
+    return currentDataset?.cleanedPreview || currentDataset?.preview || [];
+  }, [currentDataset]);
 
-  // Fetch visualization data from backend
-  const fetchViz = async () => {
-    if (!currentDataset?.id) return;
-    setLoading(true);
-    try {
-      const res = await getVisualizations(currentDataset.id);
-      setVizData(res.data);
-      if (!selectedCol && columns.length > 0) {
-        setSelectedCol(columns[0]);
-      }
-    } catch (err) {
-      console.error('Viz fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (currentDataset?.id) {
-      fetchViz();
-    }
+  // Set default columns
+  useMemo(() => {
     if (columns.length > 0) {
-      if (!selectedCol) setSelectedCol(columns[0]);
-      if (!scatterX && numericColumns.length > 0) setScatterX(numericColumns[0]);
-      if (!scatterY && numericColumns.length > 1) setScatterY(numericColumns[1]);
-      else if (!scatterY && numericColumns.length > 0) setScatterY(numericColumns[0]);
+      if (!xCol) setXCol(columns[0]);
+      if (!yCol && columns.length > 1) setYCol(columns[1]);
+      else if (!yCol) setYCol(columns[0]);
     }
-  }, [currentDataset?.id, columns, numericColumns]);
+  }, [columns]);
 
-  // Missing values data
-  const missingData = useMemo(() => {
-    if (analysisResult?.columns) {
-      return analysisResult.columns.map(c => ({
-        column: c.column_name,
-        missing_pct: c.missing_pct ?? 0,
-        missing_count: c.missing_count ?? 0,
-      }));
-    }
-    if (vizData?.missing_heatmap?.columns) {
-      const cols = vizData.missing_heatmap.columns;
-      const matrix = vizData.missing_heatmap.data || [];
-      const totalRows = matrix.length || 1;
-      return cols.map((col, colIdx) => {
-        const missingCount = matrix.reduce((acc, row) => acc + (row[colIdx] === 1 ? 1 : 0), 0);
-        return {
-          column: col,
-          missing_pct: (missingCount / totalRows) * 100,
-          missing_count: missingCount,
-        };
-      });
-    }
-    return undefined;
-  }, [analysisResult, vizData]);
+  // Filtered 80 charts
+  const filteredCharts = useMemo(() => {
+    return ALL_80_CHARTS.filter(c => {
+      const matchCat = activeCategory === 'All 80 Visualizations' || c.category === activeCategory;
+      const matchSearch = !searchQuery.trim() ||
+        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.desc.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        String(c.id).includes(searchQuery.trim());
+      return matchCat && matchSearch;
+    });
+  }, [activeCategory, searchQuery]);
 
-  // Correlation matrix data
-  const correlationData = useMemo(() => {
-    if (vizData?.correlation_matrix?.columns && vizData?.correlation_matrix?.data) {
-      return {
-        columns: vizData.correlation_matrix.columns,
-        matrix: vizData.correlation_matrix.data,
-      };
-    }
-    if (analysisResult?.correlation_matrix) {
-      const cols = Object.keys(analysisResult.correlation_matrix);
-      const matrix = cols.map(c1 => cols.map(c2 => analysisResult.correlation_matrix[c1]?.[c2] ?? 0));
-      return { columns: cols, matrix };
-    }
-    return undefined;
-  }, [vizData, analysisResult]);
-
-  // Distribution data for selected column
-  const distData = useMemo(() => {
-    const dist = vizData?.distributions?.[selectedCol];
-    if (dist?.labels && dist?.counts) {
-      return {
-        labels: dist.labels.map(l => (typeof l === 'number' ? l.toFixed(1) : String(l))),
-        values: dist.counts,
-      };
-    }
-    return undefined;
-  }, [vizData, selectedCol]);
-
-  // Outlier comparison data (IQR vs ZScore)
-  const outlierData = useMemo(() => {
-    if (analysisResult?.columns) {
-      return analysisResult.columns.map(c => ({
-        column: c.column_name,
-        outliers_iqr: c.outliers_iqr ?? 0,
-        outliers_zscore: c.outliers_zscore ?? 0,
-      }));
-    }
-    if (vizData?.boxplots) {
-      return Object.keys(vizData.boxplots).map(col => ({
-        column: col,
-        outliers_iqr: vizData.boxplots[col]?.outliers?.length ?? 0,
-        outliers_zscore: vizData.boxplots[col]?.outliers?.length ?? 0,
-      }));
-    }
-    return undefined;
-  }, [analysisResult, vizData]);
-
-  // Class balance data for selected column
-  const classData = useMemo(() => {
-    return vizData?.class_balances?.[selectedCol] || distData;
-  }, [vizData, selectedCol, distData]);
-
-  // Boxplot spread data for selected column
-  const boxData = useMemo(() => {
-    return vizData?.boxplots?.[selectedCol];
-  }, [vizData, selectedCol]);
-
-  // Scatter plot points (derived from preview or random sample if not in backend)
-  const scatterPoints = useMemo(() => {
-    const preview = currentDataset?.cleanedPreview || currentDataset?.preview || [];
-    if (!preview.length || !scatterX || !scatterY) return [];
-    return preview
-      .map(row => ({
-        x: parseFloat(row[scatterX]),
-        y: parseFloat(row[scatterY]),
-      }))
-      .filter(p => !isNaN(p.x) && !isNaN(p.y));
-  }, [currentDataset, scatterX, scatterY]);
-
-  const scores = analysisResult?.quality_score || {};
+  const activeChart = useMemo(() => {
+    return ALL_80_CHARTS.find(c => c.id === activeChartId) || ALL_80_CHARTS[0];
+  }, [activeChartId]);
 
   return (
     <div className="flex flex-col gap-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-end justify-between flex-wrap gap-4">
+      {/* Top Header */}
+      <div className="flex justify-between items-end flex-wrap gap-4">
         <div>
-          <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">Visualizations Suite</h2>
-          <p className="text-gray-500 font-medium">
-            {currentDataset
-              ? `Interactive exploratory analysis & quality visualizer for ${currentDataset.name || 'Dataset'}`
-              : 'Upload a dataset to view live charts'}
+          <div className="flex items-center gap-2">
+            <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">Visualizations Suite</h2>
+            <span className="px-2.5 py-0.5 bg-[#7C9082]/15 text-[#7C9082] text-xs font-bold rounded-full">
+              80 Chart Types Available
+            </span>
+          </div>
+          <p className="text-gray-500 font-medium mt-1">
+            Complete data science, machine learning, statistical & NLP visualization suite.
           </p>
         </div>
 
-        {/* Global Controls */}
-        <div className="flex items-center gap-3 flex-wrap">
-          {columns.length > 0 && (
-            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-2xl px-3 py-1.5 shadow-sm">
-              <span className="text-xs font-bold text-gray-400 uppercase">Focus Column:</span>
-              <select
-                value={selectedCol}
-                onChange={e => setSelectedCol(e.target.value)}
-                className="bg-transparent text-gray-800 font-bold text-xs outline-none cursor-pointer pr-4"
-              >
-                {columns.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-          )}
-
+        {/* Action Buttons */}
+        <div className="flex items-center gap-3">
           <button
-            onClick={fetchViz}
-            disabled={loading || !currentDataset?.id}
-            className="btn-nd btn-nd-secondary text-xs"
+            onClick={() => setDashboardMode(!dashboardMode)}
+            className={`btn-nd text-xs flex items-center gap-1.5 ${
+              dashboardMode ? 'bg-[#7C9082] text-white shadow-soft' : 'btn-nd-secondary'
+            }`}
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            {loading ? 'Refreshing…' : 'Refresh'}
+            <Grid size={14} />
+            {dashboardMode ? 'Single View Mode' : '80-Chart Multi-Grid'}
           </button>
         </div>
       </div>
 
-      {/* Category Tab Bar */}
-      <div className="flex gap-1.5 p-1.5 bg-gray-100/80 rounded-2xl w-fit flex-wrap">
-        {[
-          { id: 'all',          label: 'All Visualizations',  icon: Layers },
-          { id: 'missing',      label: 'Missing & Health',    icon: BarChart2 },
-          { id: 'distribution', label: 'Distributions & Box', icon: TrendingUp },
-          { id: 'correlation',  label: 'Relationships & X-Y',icon: GitBranch },
-          { id: 'quality',      label: 'Quality Dimensions',  icon: ShieldCheck },
-        ].map(t => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeTab === t.id
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-800'
-            }`}
-          >
-            <t.icon size={14} />
-            {t.label}
-          </button>
-        ))}
+      {/* Search & Category Filter Pills */}
+      <div className="flex flex-col gap-3">
+        {/* Search Bar */}
+        <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-2xl px-4 py-2.5 shadow-sm max-w-lg">
+          <Search size={16} className="text-gray-400 flex-shrink-0" />
+          <input
+            type="text"
+            placeholder="Search all 80 visualizations (e.g. Histogram, ROC, SHAP, Violin, Sankey)…"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="flex-1 text-sm outline-none text-gray-800 bg-transparent font-medium"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="text-gray-400 hover:text-gray-600 text-xs">✕</button>
+          )}
+        </div>
+
+        {/* Category Pills */}
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {CATEGORIES.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                activeCategory === cat
+                  ? 'bg-[#7C9082] text-white shadow-sm'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* ── CHARTS CONTAINER ── */}
-      <div className="flex flex-col gap-6">
+      {/* ── DASHBOARD MODE: Multi-Grid of Charts ── */}
+      {dashboardMode ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredCharts.map(c => (
+            <NordicCard
+              key={c.id}
+              title={`${c.id}. ${c.name}`}
+              subtitle={c.desc}
+              icon={BarChart2}
+              color="sage"
+              className="h-80"
+              animate={false}
+            >
+              <div className="flex-1 min-h-0 mt-2">
+                <UniversalChartEngine
+                  chartId={c.id}
+                  dataset={dataset}
+                  columns={columns}
+                  xCol={xCol}
+                  yCol={yCol}
+                  analysisResult={analysisResult}
+                />
+              </div>
+            </NordicCard>
+          ))}
+        </div>
+      ) : (
+        /* ── SINGLE VIEW MODE: Interactive Focus Studio ── */
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Left Column (1 col): 80-Chart Selector List */}
+          <div className="lg:col-span-1 flex flex-col gap-3">
+            <div className="flex justify-between items-center px-1">
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                Select Chart ({filteredCharts.length})
+              </span>
+            </div>
 
-        {/* ROW 1: Missing Values & Outlier Comparisons */}
-        {(activeTab === 'all' || activeTab === 'missing') && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-              <NordicCard
-                title="Missing Values by Column"
-                subtitle="Columns sorted by missing value percentage"
-                icon={BarChart2}
-                color="terra"
-                className="h-96"
-                animate={false}
-              >
-                <div className="flex-1 min-h-0 mt-2">
-                  <MissingHeatmap data={missingData} />
-                </div>
-              </NordicCard>
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-              <NordicCard
-                title="Outlier Detection Comparison"
-                subtitle="IQR Method vs Z-Score Method (threshold 3.0)"
-                icon={AlertOctagon}
-                color="mustard"
-                className="h-96"
-                animate={false}
-              >
-                <div className="flex-1 min-h-0 mt-2">
-                  <BoxPlotChart data={outlierData} />
-                </div>
-              </NordicCard>
-            </motion.div>
+            <div className="flex flex-col gap-1.5 max-h-[640px] overflow-y-auto pr-1">
+              {filteredCharts.map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => setActiveChartId(c.id)}
+                  className={`text-left p-3 rounded-2xl border transition-all flex items-start justify-between gap-2 ${
+                    activeChartId === c.id
+                      ? 'bg-[#F2F5F3] border-[#7C9082] shadow-sm'
+                      : 'bg-white border-gray-100 hover:border-gray-200 text-gray-700'
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded-md">
+                        #{c.id}
+                      </span>
+                      <span className={`text-xs font-bold truncate ${activeChartId === c.id ? 'text-[#7C9082]' : 'text-gray-800'}`}>
+                        {c.name}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1 line-clamp-1">{c.desc}</p>
+                  </div>
+                  {activeChartId === c.id && <ChevronRight size={14} className="text-[#7C9082] flex-shrink-0 mt-1" />}
+                </button>
+              ))}
+            </div>
           </div>
-        )}
 
-        {/* ROW 2: Distribution Histogram & 5-Number Box Plot Spread */}
-        {(activeTab === 'all' || activeTab === 'distribution') && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-              <NordicCard
-                title={`Distribution Histogram — ${selectedCol || 'Select Column'}`}
-                subtitle="Frequency binning & density profile"
-                icon={TrendingUp}
-                color="sage"
-                className="h-96"
-                animate={false}
-              >
-                <div className="flex-1 min-h-0 mt-2">
-                  <DistributionPlot
-                    column={selectedCol}
-                    labels={distData?.labels}
-                    values={distData?.values}
-                  />
-                </div>
-              </NordicCard>
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-              <NordicCard
-                title={`5-Number Box Plot Spread — ${selectedCol || 'Select Column'}`}
-                subtitle="Min, Q1 (25%), Median, Q3 (75%), Max & Outliers"
-                icon={Sliders}
-                color="dusty"
-                className="h-96"
-                animate={false}
-              >
-                <div className="flex-1 min-h-0 mt-2">
-                  <BoxPlotSpreadChart boxData={boxData} column={selectedCol} />
-                </div>
-              </NordicCard>
-            </motion.div>
-          </div>
-        )}
-
-        {/* ROW 3: Correlation Matrix & Interactive X-Y Scatter Plot */}
-        {(activeTab === 'all' || activeTab === 'correlation') && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-              <NordicCard
-                title="Feature Correlation Matrix"
-                subtitle="Pairwise Pearson correlation coefficients (Sage = +1, Terracotta = -1)"
-                icon={GitBranch}
-                color="dusty"
-                className="h-96"
-                animate={false}
-              >
-                <div className="flex-1 min-h-0 mt-2">
-                  <CorrelationMatrix data={correlationData} />
-                </div>
-              </NordicCard>
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-              <NordicCard
-                title={`Bivariate Scatter Plot (${scatterX || 'X'} vs ${scatterY || 'Y'})`}
-                subtitle="Inspect pairwise relationships, clusters & outliers"
-                icon={ScatterIcon}
-                color="sage"
-                className="h-96"
-                animate={false}
-              >
-                {/* X & Y Column Selectors inside the card */}
-                <div className="flex items-center gap-3 mb-2 px-1">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600">
-                    <span>X:</span>
+          {/* Right Column (3 cols): Active Chart Visualizer & Parameters */}
+          <div className="lg:col-span-3 flex flex-col gap-6">
+            <NordicCard
+              title={`${activeChart.id}. ${activeChart.name}`}
+              subtitle={activeChart.desc}
+              icon={BarChart2}
+              color="sage"
+              className="min-h-[520px]"
+            >
+              {/* Feature Dimension Selectors */}
+              <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-gray-100">
+                <div className="flex items-center gap-3 flex-wrap">
+                  {/* Primary X Column */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-gray-500">X-Axis:</span>
                     <select
-                      value={scatterX}
-                      onChange={e => setScatterX(e.target.value)}
-                      className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold text-gray-700 outline-none"
+                      value={xCol}
+                      onChange={e => setXCol(e.target.value)}
+                      className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-800 outline-none cursor-pointer"
                     >
-                      {numericColumns.map(c => <option key={c} value={c}>{c}</option>)}
+                      {columns.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600">
-                    <span>Y:</span>
+
+                  {/* Secondary Y Column */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-gray-500">Y-Axis:</span>
                     <select
-                      value={scatterY}
-                      onChange={e => setScatterY(e.target.value)}
-                      className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold text-gray-700 outline-none"
+                      value={yCol}
+                      onChange={e => setYCol(e.target.value)}
+                      className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-800 outline-none cursor-pointer"
                     >
-                      {numericColumns.map(c => <option key={c} value={c}>{c}</option>)}
+                      {columns.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                 </div>
 
-                <div className="flex-1 min-h-0">
-                  <ScatterPlotChart points={scatterPoints} xCol={scatterX} yCol={scatterY} />
-                </div>
-              </NordicCard>
-            </motion.div>
+                <span className="text-[10px] font-bold px-3 py-1 bg-gray-50 text-gray-600 rounded-full border border-gray-200">
+                  Category: {activeChart.category}
+                </span>
+              </div>
+
+              {/* Live Render Area */}
+              <div className="flex-1 min-h-[400px] mt-4">
+                <UniversalChartEngine
+                  chartId={activeChart.id}
+                  dataset={dataset}
+                  columns={columns}
+                  xCol={xCol}
+                  yCol={yCol}
+                  analysisResult={analysisResult}
+                />
+              </div>
+            </NordicCard>
           </div>
-        )}
-
-        {/* ROW 4: Quality Radar & Categorical Class Balance */}
-        {(activeTab === 'all' || activeTab === 'quality') && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-              <NordicCard
-                title="6-Dimension Quality Radar"
-                subtitle="Completeness, Consistency, Accuracy, Uniqueness, Validity, Integrity"
-                icon={ShieldCheck}
-                color="sage"
-                className="h-96"
-                animate={false}
-              >
-                <div className="flex-1 min-h-0 mt-2">
-                  <QualityDashboard scores={scores} />
-                </div>
-              </NordicCard>
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-              <NordicCard
-                title={`Class Balance / Category Split — ${selectedCol || 'Select Column'}`}
-                subtitle="Proportions across unique category classes"
-                icon={PieChart}
-                color="mustard"
-                className="h-96"
-                animate={false}
-              >
-                <div className="flex-1 min-h-0 mt-2">
-                  <ClassBalanceChart data={classData} column={selectedCol} />
-                </div>
-              </NordicCard>
-            </motion.div>
-          </div>
-        )}
-
-      </div>
+        </div>
+      )}
     </div>
   );
 }
