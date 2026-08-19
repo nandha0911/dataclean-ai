@@ -5,18 +5,25 @@
  */
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL}/api`
-  : (import.meta.env.PROD ? 'https://nandha2425-dataclean-ai-backend.hf.space/api' : '/api');
+export const getBaseUrl = () => {
+  const localOverride = typeof window !== 'undefined' ? localStorage.getItem('DATACLEAN_API_URL') : null;
+  if (localOverride && localOverride.trim()) {
+    return `${localOverride.trim().replace(/\/$/, '')}/api`;
+  }
+  if (import.meta.env.VITE_API_URL) {
+    return `${import.meta.env.VITE_API_URL.trim().replace(/\/$/, '')}/api`;
+  }
+  return import.meta.env.PROD ? 'https://nandha2425-dataclean-ai-backend.hf.space/api' : '/api';
+};
 
 const api = axios.create({
-  baseURL: BASE_URL,
   timeout: 120000, // 2 min for heavy ML operations
 });
 
-// Request interceptor
+// Request interceptor to set dynamic baseURL on each call
 api.interceptors.request.use(
   (config) => {
+    config.baseURL = getBaseUrl();
     return config;
   },
   (error) => Promise.reject(error)
