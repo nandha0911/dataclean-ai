@@ -146,12 +146,15 @@ export default function Visualizations() {
     return currentDataset?.cleanedPreview || currentDataset?.preview || [];
   }, [currentDataset]);
 
-  // Set default columns on load
-  useMemo(() => {
+  // Auto-initialize default columns whenever columns change
+  useEffect(() => {
     if (columns.length > 0) {
-      if (!xCol) setXCol(columns[0]);
-      if (!yCol && columns.length > 1) setYCol(columns[1]);
-      else if (!yCol) setYCol(columns[0]);
+      if (!xCol || !columns.includes(xCol)) {
+        setXCol(columns[0]);
+      }
+      if (!yCol || !columns.includes(yCol)) {
+        setYCol(columns.length > 1 ? columns[1] : columns[0]);
+      }
     }
   }, [columns]);
 
@@ -412,17 +415,55 @@ export default function Visualizations() {
               color="sage"
               className="min-h-[540px]"
             >
-              {/* Summary Pill Bar */}
-              <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-gray-100 text-xs font-semibold text-gray-500">
-                <div className="flex items-center gap-2">
-                  <span className="px-3 py-1 bg-gray-50 rounded-full border border-gray-200">
-                    X-Axis: <strong className="text-gray-800">{xCol || 'None'}</strong>
-                  </span>
-                  <span className="px-3 py-1 bg-gray-50 rounded-full border border-gray-200">
-                    Y-Axis: <strong className="text-gray-800">{yCol || 'None'}</strong> ({aggregation})
-                  </span>
+              {/* Interactive Quick-Controls Bar directly on Chart Card */}
+              <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-gray-100">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Interactive X-Axis Dropdown Button */}
+                  <div className="flex items-center gap-1.5 bg-white border border-gray-200 hover:border-[#7C9082] rounded-full px-3 py-1.5 shadow-xs transition-all cursor-pointer">
+                    <span className="text-xs font-bold text-gray-500">X-Axis:</span>
+                    <select
+                      value={xCol || (columns.length > 0 ? columns[0] : '')}
+                      onChange={e => setXCol(e.target.value)}
+                      className="bg-transparent text-xs font-extrabold text-gray-900 outline-none cursor-pointer pr-1"
+                    >
+                      {columns.map(c => <option key={c} value={c}>{c}</option>)}
+                      {!columns.length && <option value="">Select Column</option>}
+                    </select>
+                  </div>
+
+                  {/* Interactive Y-Axis Dropdown Button */}
+                  <div className="flex items-center gap-1.5 bg-white border border-gray-200 hover:border-[#7C9082] rounded-full px-3 py-1.5 shadow-xs transition-all cursor-pointer">
+                    <span className="text-xs font-bold text-gray-500">Y-Axis:</span>
+                    <select
+                      value={yCol || (columns.length > 1 ? columns[1] : (columns.length > 0 ? columns[0] : ''))}
+                      onChange={e => setYCol(e.target.value)}
+                      className="bg-transparent text-xs font-extrabold text-gray-900 outline-none cursor-pointer pr-1"
+                    >
+                      {columns.map(c => <option key={c} value={c}>{c}</option>)}
+                      {!columns.length && <option value="">Select Column</option>}
+                    </select>
+                  </div>
+
+                  {/* Interactive Metric Dropdown Button */}
+                  <div className="flex items-center gap-1.5 bg-[#F2F5F3] border border-[#7C9082]/30 hover:border-[#7C9082] rounded-full px-3 py-1.5 shadow-xs transition-all cursor-pointer">
+                    <span className="text-xs font-bold text-[#7C9082]">Metric:</span>
+                    <select
+                      value={aggregation}
+                      onChange={e => setAggregation(e.target.value)}
+                      className="bg-transparent text-xs font-extrabold text-[#7C9082] outline-none cursor-pointer pr-1"
+                    >
+                      <option value="auto">Auto</option>
+                      <option value="mean">Average (Mean)</option>
+                      <option value="sum">Sum (Total)</option>
+                      <option value="count">Count (Frequency)</option>
+                      <option value="max">Max Value</option>
+                      <option value="min">Min Value</option>
+                      <option value="raw">Raw Values</option>
+                    </select>
+                  </div>
                 </div>
-                <span className="text-[10px] font-bold px-3 py-1 bg-[#F2F5F3] text-[#7C9082] rounded-full">
+
+                <span className="text-[10px] font-bold px-3 py-1 bg-gray-50 text-gray-600 rounded-full border border-gray-200">
                   Category: {activeChart.category}
                 </span>
               </div>
