@@ -1,15 +1,31 @@
 /**
- * Visualizations — Nordic Light
- * Fetches live visualization data from backend and renders all 4 charts.
+ * Visualizations Suite — All-in-One Data Science & Quality Charts
+ * Includes:
+ *  - Missing Values Matrix & Completeness
+ *  - Outlier Bar (IQR vs Z-Score)
+ *  - 5-Number Box Plot Quartile Spread
+ *  - Frequency Distribution Histogram
+ *  - Categorical Class Balance Doughnut
+ *  - Feature Correlation Heatmap Matrix
+ *  - Interactive Bivariate X-Y Scatter Plot
+ *  - Multi-dimensional Quality Radar
  */
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { BarChart2, GitBranch, TrendingUp, AlertOctagon, RefreshCw, ChevronDown } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  BarChart2, GitBranch, TrendingUp, AlertOctagon, RefreshCw,
+  ChevronDown, PieChart, ScatterChart as ScatterIcon, ShieldCheck,
+  Layers, Sliders
+} from 'lucide-react';
 import NordicCard from '../components/ui/NordicCard';
 import MissingHeatmap from '../components/charts/MissingHeatmap';
 import CorrelationMatrix from '../components/charts/CorrelationMatrix';
 import DistributionPlot from '../components/charts/DistributionPlot';
 import BoxPlotChart from '../components/charts/BoxPlotChart';
+import QualityDashboard from '../components/charts/QualityDashboard';
+import ClassBalanceChart from '../components/charts/ClassBalanceChart';
+import ScatterPlotChart from '../components/charts/ScatterPlotChart';
+import BoxPlotSpreadChart from '../components/charts/BoxPlotSpreadChart';
 import useAppStore from '../store/useAppStore';
 import { getVisualizations } from '../api/client';
 import toast from 'react-hot-toast';
@@ -17,13 +33,28 @@ import toast from 'react-hot-toast';
 export default function Visualizations() {
   const { currentDataset, analysisResult } = useAppStore();
 
-  const [vizData, setVizData]         = useState(null);
-  const [loading, setLoading]         = useState(false);
-  const [selectedCol, setSelectedCol] = useState('');
+  const [vizData, setVizData]           = useState(null);
+  const [loading, setLoading]           = useState(false);
+  const [selectedCol, setSelectedCol]   = useState('');
+  const [scatterX, setScatterX]         = useState('');
+  const [scatterY, setScatterY]         = useState('');
+  const [activeTab, setActiveTab]       = useState('all'); // all | missing | distribution | correlation | quality
 
-  // Derive column list from analysis result or current dataset
-  const columns = analysisResult?.columns?.map(c => c.column_name)
-    || (currentDataset?.preview?.length ? Object.keys(currentDataset.preview[0]) : []);
+  // Derive column list from analysis result or preview
+  const columns = useMemo(() => {
+    return analysisResult?.columns?.map(c => c.column_name)
+      || (currentDataset?.preview?.length ? Object.keys(currentDataset.preview[0]) : []);
+  }, [analysisResult, currentDataset]);
+
+  // Derive numeric columns
+  const numericColumns = useMemo(() => {
+    if (analysisResult?.columns) {
+      return analysisResult.columns
+        .filter(c => c.dtype === 'numeric' || c.dtype === 'float64' || c.dtype === 'int64')
+        .map(c => c.column_name);
+    }
+    return columns;
+  }, [analysisResult, columns]);
 
   // Fetch visualization data from backend
   const fetchViz = async () => {
@@ -32,9 +63,8 @@ export default function Visualizations() {
     try {
       const res = await getVisualizations(currentDataset.id);
       setVizData(res.data);
-      if (!selectedCol) {
-        const availableCols = Object.keys(res.data?.distributions || {});
-        if (availableCols.length > 0) setSelectedCol(availableCols[0]);
+      if (!selectedCol && columns.length > 0) {
+        setSelectedCol(columns[0]);
       }
     } catch (err) {
       console.error('Viz fetch error:', err);
@@ -47,11 +77,16 @@ export default function Visualizations() {
     if (currentDataset?.id) {
       fetchViz();
     }
-    if (!selectedCol && columns.length) setSelectedCol(columns[0]);
-  }, [currentDataset?.id]);
+    if (columns.length > 0) {
+      if (!selectedCol) setSelectedCol(columns[0]);
+      if (!scatterX && numericColumns.length > 0) setScatterX(numericColumns[0]);
+      if (!scatterY && numericColumns.length > 1) setScatterY(numericColumns[1]);
+      else if (!scatterY && numericColumns.length > 0) setScatterY(numericColumns[0]);
+    }
+  }, [currentDataset?.id, columns, numericColumns]);
 
-  // Transform missing_heatmap into format expected by MissingHeatmap component
-  const missingData = (() => {
+  // Missing values data
+  const missingData = useMemo(() => {
     if (analysisResult?.columns) {
       return analysisResult.columns.map(c => ({
         column: c.column_name,
@@ -73,10 +108,10 @@ export default function Visualizations() {
       });
     }
     return undefined;
-  })();
+  }, [analysisResult, vizData]);
 
-  // Transform correlation_matrix for CorrelationMatrix component
-  const correlationData = (() => {
+  // Correlation matrix data
+  const correlationData = useMemo(() => {
     if (vizData?.correlation_matrix?.columns && vizData?.correlation_matrix?.data) {
       return {
         columns: vizData.correlation_matrix.columns,
@@ -89,10 +124,10 @@ export default function Visualizations() {
       return { columns: cols, matrix };
     }
     return undefined;
-  })();
+  }, [vizData, analysisResult]);
 
-  // Transform distribution data for selected column
-  const distData = (() => {
+  // Distribution data for selected column
+  const distData = useMemo(() => {
     const dist = vizData?.distributions?.[selectedCol];
     if (dist?.labels && dist?.counts) {
       return {
@@ -101,10 +136,10 @@ export default function Visualizations() {
       };
     }
     return undefined;
-  })();
+  }, [vizData, selectedCol]);
 
-  // Transform outlier data for BoxPlotChart component
-  const outlierData = (() => {
+  // Outlier comparison data (IQR vs ZScore)
+  const outlierData = useMemo(() => {
     if (analysisResult?.columns) {
       return analysisResult.columns.map(c => ({
         column: c.column_name,
@@ -120,112 +155,266 @@ export default function Visualizations() {
       }));
     }
     return undefined;
-  })();
+  }, [analysisResult, vizData]);
+
+  // Class balance data for selected column
+  const classData = useMemo(() => {
+    return vizData?.class_balances?.[selectedCol] || distData;
+  }, [vizData, selectedCol, distData]);
+
+  // Boxplot spread data for selected column
+  const boxData = useMemo(() => {
+    return vizData?.boxplots?.[selectedCol];
+  }, [vizData, selectedCol]);
+
+  // Scatter plot points (derived from preview or random sample if not in backend)
+  const scatterPoints = useMemo(() => {
+    const preview = currentDataset?.cleanedPreview || currentDataset?.preview || [];
+    if (!preview.length || !scatterX || !scatterY) return [];
+    return preview
+      .map(row => ({
+        x: parseFloat(row[scatterX]),
+        y: parseFloat(row[scatterY]),
+      }))
+      .filter(p => !isNaN(p.x) && !isNaN(p.y));
+  }, [currentDataset, scatterX, scatterY]);
+
+  const scores = analysisResult?.quality_score || {};
 
   return (
     <div className="flex flex-col gap-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-end justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">Visualizations</h2>
+          <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">Visualizations Suite</h2>
           <p className="text-gray-500 font-medium">
             {currentDataset
-              ? `Exploring patterns in ${currentDataset.name}`
+              ? `Interactive exploratory analysis & quality visualizer for ${currentDataset.name || 'Dataset'}`
               : 'Upload a dataset to view live charts'}
           </p>
         </div>
-        <div className="flex gap-3">
+
+        {/* Global Controls */}
+        <div className="flex items-center gap-3 flex-wrap">
           {columns.length > 0 && (
-            <div className="relative">
+            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-2xl px-3 py-1.5 shadow-sm">
+              <span className="text-xs font-bold text-gray-400 uppercase">Focus Column:</span>
               <select
                 value={selectedCol}
                 onChange={e => setSelectedCol(e.target.value)}
-                className="appearance-none pr-10 bg-white border border-gray-200 text-gray-700 font-semibold text-sm rounded-full px-4 py-2.5 shadow-sm cursor-pointer focus:ring-2 focus:ring-gray-200"
+                className="bg-transparent text-gray-800 font-bold text-xs outline-none cursor-pointer pr-4"
               >
                 {columns.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
-              <ChevronDown size={14} className="absolute right-3 top-3.5 text-gray-400 pointer-events-none" />
             </div>
           )}
+
           <button
             onClick={fetchViz}
             disabled={loading || !currentDataset?.id}
-            className="btn-nd btn-nd-secondary"
+            className="btn-nd btn-nd-secondary text-xs"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            Refresh
+            {loading ? 'Refreshing…' : 'Refresh'}
           </button>
         </div>
       </div>
 
-      {/* Row 1: Missing Values + Outliers */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <NordicCard
-            title="Missing Values by Column"
-            subtitle="Sorted by missing percentage"
-            icon={BarChart2}
-            color="terra"
-            className="h-96"
-            animate={false}
+      {/* Category Tab Bar */}
+      <div className="flex gap-1.5 p-1.5 bg-gray-100/80 rounded-2xl w-fit flex-wrap">
+        {[
+          { id: 'all',          label: 'All Visualizations',  icon: Layers },
+          { id: 'missing',      label: 'Missing & Health',    icon: BarChart2 },
+          { id: 'distribution', label: 'Distributions & Box', icon: TrendingUp },
+          { id: 'correlation',  label: 'Relationships & X-Y',icon: GitBranch },
+          { id: 'quality',      label: 'Quality Dimensions',  icon: ShieldCheck },
+        ].map(t => (
+          <button
+            key={t.id}
+            onClick={() => setActiveTab(t.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === t.id
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-800'
+            }`}
           >
-            <div className="flex-1 min-h-0 mt-2">
-              <MissingHeatmap data={missingData} />
-            </div>
-          </NordicCard>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <NordicCard
-            title="Outlier Count by Column"
-            subtitle="IQR method vs Z-Score method"
-            icon={AlertOctagon}
-            color="mustard"
-            className="h-96"
-            animate={false}
-          >
-            <div className="flex-1 min-h-0 mt-2">
-              <BoxPlotChart data={outlierData} />
-            </div>
-          </NordicCard>
-        </motion.div>
+            <t.icon size={14} />
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {/* Row 2: Distribution + Correlation */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <NordicCard
-            title={`Distribution — ${selectedCol || 'Select a column'}`}
-            subtitle="Frequency histogram"
-            icon={TrendingUp}
-            color="sage"
-            className="h-96"
-            animate={false}
-          >
-            <div className="flex-1 min-h-0 mt-2">
-              <DistributionPlot
-                column={selectedCol}
-                labels={distData?.labels}
-                values={distData?.values}
-              />
-            </div>
-          </NordicCard>
-        </motion.div>
+      {/* ── CHARTS CONTAINER ── */}
+      <div className="flex flex-col gap-6">
 
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <NordicCard
-            title="Feature Correlation Matrix"
-            subtitle="Hover cells for exact value · Sage = positive · Terracotta = negative"
-            icon={GitBranch}
-            color="dusty"
-            className="h-96"
-            animate={false}
-          >
-            <div className="flex-1 min-h-0 mt-2">
-              <CorrelationMatrix data={correlationData} />
-            </div>
-          </NordicCard>
-        </motion.div>
+        {/* ROW 1: Missing Values & Outlier Comparisons */}
+        {(activeTab === 'all' || activeTab === 'missing') && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+              <NordicCard
+                title="Missing Values by Column"
+                subtitle="Columns sorted by missing value percentage"
+                icon={BarChart2}
+                color="terra"
+                className="h-96"
+                animate={false}
+              >
+                <div className="flex-1 min-h-0 mt-2">
+                  <MissingHeatmap data={missingData} />
+                </div>
+              </NordicCard>
+            </motion.div>
+
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+              <NordicCard
+                title="Outlier Detection Comparison"
+                subtitle="IQR Method vs Z-Score Method (threshold 3.0)"
+                icon={AlertOctagon}
+                color="mustard"
+                className="h-96"
+                animate={false}
+              >
+                <div className="flex-1 min-h-0 mt-2">
+                  <BoxPlotChart data={outlierData} />
+                </div>
+              </NordicCard>
+            </motion.div>
+          </div>
+        )}
+
+        {/* ROW 2: Distribution Histogram & 5-Number Box Plot Spread */}
+        {(activeTab === 'all' || activeTab === 'distribution') && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <NordicCard
+                title={`Distribution Histogram — ${selectedCol || 'Select Column'}`}
+                subtitle="Frequency binning & density profile"
+                icon={TrendingUp}
+                color="sage"
+                className="h-96"
+                animate={false}
+              >
+                <div className="flex-1 min-h-0 mt-2">
+                  <DistributionPlot
+                    column={selectedCol}
+                    labels={distData?.labels}
+                    values={distData?.values}
+                  />
+                </div>
+              </NordicCard>
+            </motion.div>
+
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+              <NordicCard
+                title={`5-Number Box Plot Spread — ${selectedCol || 'Select Column'}`}
+                subtitle="Min, Q1 (25%), Median, Q3 (75%), Max & Outliers"
+                icon={Sliders}
+                color="dusty"
+                className="h-96"
+                animate={false}
+              >
+                <div className="flex-1 min-h-0 mt-2">
+                  <BoxPlotSpreadChart boxData={boxData} column={selectedCol} />
+                </div>
+              </NordicCard>
+            </motion.div>
+          </div>
+        )}
+
+        {/* ROW 3: Correlation Matrix & Interactive X-Y Scatter Plot */}
+        {(activeTab === 'all' || activeTab === 'correlation') && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+              <NordicCard
+                title="Feature Correlation Matrix"
+                subtitle="Pairwise Pearson correlation coefficients (Sage = +1, Terracotta = -1)"
+                icon={GitBranch}
+                color="dusty"
+                className="h-96"
+                animate={false}
+              >
+                <div className="flex-1 min-h-0 mt-2">
+                  <CorrelationMatrix data={correlationData} />
+                </div>
+              </NordicCard>
+            </motion.div>
+
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+              <NordicCard
+                title={`Bivariate Scatter Plot (${scatterX || 'X'} vs ${scatterY || 'Y'})`}
+                subtitle="Inspect pairwise relationships, clusters & outliers"
+                icon={ScatterIcon}
+                color="sage"
+                className="h-96"
+                animate={false}
+              >
+                {/* X & Y Column Selectors inside the card */}
+                <div className="flex items-center gap-3 mb-2 px-1">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600">
+                    <span>X:</span>
+                    <select
+                      value={scatterX}
+                      onChange={e => setScatterX(e.target.value)}
+                      className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold text-gray-700 outline-none"
+                    >
+                      {numericColumns.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600">
+                    <span>Y:</span>
+                    <select
+                      value={scatterY}
+                      onChange={e => setScatterY(e.target.value)}
+                      className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold text-gray-700 outline-none"
+                    >
+                      {numericColumns.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex-1 min-h-0">
+                  <ScatterPlotChart points={scatterPoints} xCol={scatterX} yCol={scatterY} />
+                </div>
+              </NordicCard>
+            </motion.div>
+          </div>
+        )}
+
+        {/* ROW 4: Quality Radar & Categorical Class Balance */}
+        {(activeTab === 'all' || activeTab === 'quality') && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+              <NordicCard
+                title="6-Dimension Quality Radar"
+                subtitle="Completeness, Consistency, Accuracy, Uniqueness, Validity, Integrity"
+                icon={ShieldCheck}
+                color="sage"
+                className="h-96"
+                animate={false}
+              >
+                <div className="flex-1 min-h-0 mt-2">
+                  <QualityDashboard scores={scores} />
+                </div>
+              </NordicCard>
+            </motion.div>
+
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+              <NordicCard
+                title={`Class Balance / Category Split — ${selectedCol || 'Select Column'}`}
+                subtitle="Proportions across unique category classes"
+                icon={PieChart}
+                color="mustard"
+                className="h-96"
+                animate={false}
+              >
+                <div className="flex-1 min-h-0 mt-2">
+                  <ClassBalanceChart data={classData} column={selectedCol} />
+                </div>
+              </NordicCard>
+            </motion.div>
+          </div>
+        )}
+
       </div>
     </div>
   );
