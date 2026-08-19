@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AnimatePresence, motion } from 'framer-motion';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -81,7 +81,7 @@ function AnimatedRoutes() {
 export default function App() {
   return (
     <ErrorBoundary>
-    <BrowserRouter>
+    <HashRouter>
       <Toaster
         position="bottom-right"
         toastOptions={{
@@ -99,7 +99,7 @@ export default function App() {
         }}
       />
       <AnimatedRoutes />
-    </BrowserRouter>
+    </HashRouter>
     </ErrorBoundary>
   );
 }
