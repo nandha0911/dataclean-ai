@@ -8,6 +8,7 @@ from services.analyzer import DataAnalyzer
 from services.scorer import QualityScorer
 from utils.file_utils import read_dataset
 from datetime import datetime
+import os
 
 router = APIRouter()
 recommender = AIRecommender()
@@ -27,13 +28,18 @@ async def get_recommendations(dataset_id: int, db: AsyncSession = Depends(get_db
             raise HTTPException(status_code=404, detail="Dataset not found. Please upload a dataset first.")
         
     job_result = await db.execute(
-        select(AnalysisJob).where(AnalysisJob.dataset_id == dataset_id).order_by(AnalysisJob.id.desc())
+        select(AnalysisJob).where(AnalysisJob.dataset_id == dataset.id).order_by(AnalysisJob.id.desc())
     )
     job = job_result.scalars().first()
     
     # Auto-run analysis on the fly if not yet analyzed
     if not job or not job.result_json:
         file_path = dataset.cleaned_path if dataset.cleaned_path else dataset.original_path
+        if not file_path or not os.path.exists(file_path):
+            raise HTTPException(
+                status_code=404,
+                detail=f"Dataset file '{dataset.filename}' was not found on the server. Please re-upload it on the Upload page."
+            )
         # Read up to 50k rows for ultra-fast, zero-OOM recommendations on 3M+ row files
         df = read_dataset(file_path, max_rows=50000)
         analysis_dict = analyzer.analyze(df, dataset.id)

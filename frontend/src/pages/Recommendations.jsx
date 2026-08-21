@@ -222,7 +222,8 @@ export default function Recommendations() {
       const res = await getRecommendations(currentDataset.id);
       setRecommendations(res.data);
     } catch (err) {
-      toast.error('Failed to fetch recommendations');
+      const msg = err?.response?.data?.detail || err?.message || 'Failed to fetch recommendations';
+      toast.error(typeof msg === 'string' ? msg : JSON.stringify(msg));
     } finally {
       setLoading(false);
     }

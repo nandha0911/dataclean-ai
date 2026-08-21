@@ -9,6 +9,7 @@ from services.scorer import QualityScorer
 from utils.file_utils import read_dataset, get_cleaned_path
 import pandas as pd
 import numpy as np
+import os
 
 router = APIRouter()
 cleaner = DataCleaner()
