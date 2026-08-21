@@ -15,7 +15,7 @@ router = APIRouter()
 async def upload_dataset(file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in settings.ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail="File extension not allowed")
+        raise HTTPException(status_code=400, detail=f"File extension '{ext}' not allowed. Supported: {', '.join(settings.ALLOWED_EXTENSIONS)}")
     
     file_path = await save_upload_file(file, file.filename)
     
@@ -25,7 +25,23 @@ async def upload_dataset(file: UploadFile = File(...), db: AsyncSession = Depend
         raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
         
     row_count, col_count = df.shape
-    preview = df.head(5).fillna("").to_dict(orient="records")
+
+    # Safe json-compatible preview
+    preview = []
+    for row in df.head(5).to_dict(orient="records"):
+        clean_row = {}
+        for k, v in row.items():
+            if pd.isna(v) or v is None or (isinstance(v, float) and (np.isinf(v) or np.isnan(v))):
+                clean_row[k] = None
+            elif isinstance(v, (np.integer, int)):
+                clean_row[k] = int(v)
+            elif isinstance(v, (np.floating, float)):
+                clean_row[k] = float(v)
+            elif isinstance(v, (np.bool_, bool)):
+                clean_row[k] = bool(v)
+            else:
+                clean_row[k] = str(v)
+        preview.append(clean_row)
     
     new_dataset = Dataset(
         filename=file.filename,

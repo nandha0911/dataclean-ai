@@ -18,7 +18,19 @@ async def save_upload_file(upload_file: UploadFile, filename: str) -> str:
 def read_dataset(file_path: str) -> pd.DataFrame:
     ext = os.path.splitext(file_path)[1].lower()
     if ext == ".csv":
-        return pd.read_csv(file_path)
+        # Robust multi-encoding fallback for international/special characters
+        encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'iso-8859-1', 'cp1252']
+        for enc in encodings:
+            try:
+                return pd.read_csv(file_path, encoding=enc, low_memory=False)
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+            except Exception:
+                try:
+                    return pd.read_csv(file_path, encoding=enc, on_bad_lines='skip', low_memory=False)
+                except Exception:
+                    continue
+        return pd.read_csv(file_path, encoding='latin-1', on_bad_lines='skip', low_memory=False)
     elif ext in [".xls", ".xlsx"]:
         return pd.read_excel(file_path)
     elif ext == ".json":
