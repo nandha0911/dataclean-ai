@@ -1,19 +1,18 @@
 /**
  * High-Speed Upload & AI Ingestion Engine
- * Max 500 MB dataset ingestion with real-time chunk streaming,
+ * Max 5 GB dataset ingestion with real-time chunk streaming,
  * live progress indicators, and instant automatic quality scanning.
  */
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   Upload, FileText, AlertCircle, X, ArrowRight,
-  Activity, CheckCircle2, Database, Sparkles, BarChart2, Server
+  Activity, CheckCircle2, Database, Sparkles, BarChart2
 } from 'lucide-react';
 import useAppStore from '../store/useAppStore';
-import { uploadDataset, analyzeDataset, getBaseUrl } from '../api/client';
-import axios from 'axios';
+import { uploadDataset, analyzeDataset } from '../api/client';
 import toast from 'react-hot-toast';
 
 const ACCEPTED_TYPES = {
@@ -32,45 +31,6 @@ export default function UploadPage() {
   const [step, setStep] = useState('idle'); // idle | uploading | analyzing | done | error
   const [result, setResult] = useState(null);
   const [errMsg, setErrMsg] = useState('');
-
-  // ── Inline Backend Connection State ──
-  const [backendUrlInput, setBackendUrlInput] = useState('');
-  const [backendHealthy, setBackendHealthy] = useState(null); // true | false | null
-  const [checkingBackend, setCheckingBackend] = useState(false);
-
-  const checkLiveBackend = async (url) => {
-    const target = (url || getBaseUrl()).replace(/\/api$/, '').replace(/\/+$/, '');
-    setCheckingBackend(true);
-    try {
-      const res = await axios.get(`${target}/health`, { timeout: 4000 });
-      if (res.data?.status === 'healthy' || res.status === 200) {
-        setBackendHealthy(true);
-      } else {
-        setBackendHealthy(false);
-      }
-    } catch {
-      setBackendHealthy(false);
-    } finally {
-      setCheckingBackend(false);
-    }
-  };
-
-  useEffect(() => {
-    const saved = localStorage.getItem('DATACLEAN_API_URL') || '';
-    setBackendUrlInput(saved);
-    checkLiveBackend(saved);
-  }, []);
-
-  const handleConnectBackend = () => {
-    if (backendUrlInput.trim()) {
-      localStorage.setItem('DATACLEAN_API_URL', backendUrlInput.trim());
-      toast.success('Backend server URL saved!');
-    } else {
-      localStorage.removeItem('DATACLEAN_API_URL');
-      toast('Reset to default backend', { icon: 'ℹ️' });
-    }
-    checkLiveBackend(backendUrlInput.trim());
-  };
 
   const onDrop = useCallback((accepted) => {
     if (!accepted.length) return;
@@ -146,10 +106,10 @@ export default function UploadPage() {
   const isDone = step === 'done';
 
   return (
-    <div className="max-w-3xl mx-auto flex flex-col gap-6">
+    <div className="max-w-3xl mx-auto flex flex-col gap-8">
       {/* Header */}
-      <div className="text-center mt-2">
-        <div className="w-16 h-16 bg-white rounded-3xl shadow-soft flex items-center justify-center mx-auto mb-4 text-[#7C9082] border border-gray-100">
+      <div className="text-center mt-4">
+        <div className="w-16 h-16 bg-white rounded-3xl shadow-soft flex items-center justify-center mx-auto mb-5 text-[#7C9082] border border-gray-100">
           <Database size={28} />
         </div>
         <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">Upload your dataset</h2>
@@ -157,39 +117,6 @@ export default function UploadPage() {
           <span>Supports CSV, Excel (.xlsx, .xls), and JSON files up to</span>
           <span className="px-2.5 py-0.5 bg-[#7C9082]/15 text-[#7C9082] rounded-full text-xs font-bold">5 GB Enterprise Max</span>
         </p>
-      </div>
-
-      {/* ── Inline Backend Server Connection Bar ── */}
-      <div className="bg-white rounded-2xl p-3.5 shadow-soft border border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${backendHealthy === true ? 'bg-emerald-500 shadow-sm' : backendHealthy === false ? 'bg-rose-500' : 'bg-amber-400 animate-pulse'}`} />
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold text-gray-800">Backend Server:</span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${backendHealthy ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                {backendHealthy ? '✓ Online' : 'Offline / Setup'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <input
-            type="text"
-            placeholder="https://your-railway-app.up.railway.app"
-            value={backendUrlInput}
-            onChange={(e) => setBackendUrlInput(e.target.value)}
-            className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-medium text-gray-800 outline-none flex-1 sm:w-64 focus:border-[#7C9082]"
-          />
-          <button
-            onClick={handleConnectBackend}
-            disabled={checkingBackend}
-            className="btn-nd btn-nd-sage px-3 py-1.5 text-xs font-bold whitespace-nowrap flex-shrink-0 flex items-center gap-1"
-          >
-            {checkingBackend ? <Activity size={12} className="animate-spin" /> : <Server size={12} />}
-            <span>{checkingBackend ? 'Connecting…' : 'Connect'}</span>
-          </button>
-        </div>
       </div>
 
       {/* Drop zone — visible when not processing */}
@@ -201,7 +128,7 @@ export default function UploadPage() {
               backgroundColor: isDragActive ? '#F2F5F3' : file ? '#F9FAF9' : '#FFFFFF',
               scale: isDragActive ? 1.01 : 1
             }}
-            className="border-2 border-dashed rounded-3xl p-12 text-center cursor-pointer transition-all shadow-soft relative overflow-hidden"
+            className="border-2 border-dashed rounded-3xl p-14 text-center cursor-pointer transition-all shadow-soft relative overflow-hidden"
           >
             <input {...getInputProps()} />
             <div className="flex flex-col items-center gap-4">
