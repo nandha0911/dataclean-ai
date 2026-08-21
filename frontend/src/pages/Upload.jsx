@@ -28,6 +28,7 @@ export default function UploadPage() {
   const [file, setFile] = useState(null);
   const [uploadPercent, setUploadPercent] = useState(0);
   const [uploadBytes, setUploadBytes] = useState({ loaded: 0, total: 0 });
+  const [chunkInfo, setChunkInfo] = useState({ current: 0, total: 0 });
   const [step, setStep] = useState('idle'); // idle | uploading | analyzing | done | error
   const [result, setResult] = useState(null);
   const [errMsg, setErrMsg] = useState('');
@@ -38,6 +39,7 @@ export default function UploadPage() {
     setStep('idle');
     setResult(null);
     setUploadPercent(0);
+    setChunkInfo({ current: 0, total: 0 });
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -64,9 +66,12 @@ export default function UploadPage() {
 
     let uploadRes;
     try {
-      uploadRes = await uploadDataset(file, (percent, loaded, total) => {
+      uploadRes = await uploadDataset(file, (percent, loaded, total, currentChunk, totalChunks) => {
         setUploadPercent(percent);
         setUploadBytes({ loaded, total });
+        if (currentChunk && totalChunks) {
+          setChunkInfo({ current: currentChunk, total: totalChunks });
+        }
       });
     } catch (err) {
       setStep('error');
@@ -175,7 +180,11 @@ export default function UploadPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-sm font-bold text-gray-800">
-                    {step === 'uploading' ? 'Streaming Dataset Chunks to Server...' : 'File Upload Complete'}
+                    {step === 'uploading'
+                      ? chunkInfo.total > 1
+                        ? `Streaming Chunk ${chunkInfo.current} of ${chunkInfo.total} (10 MB parts)...`
+                        : 'Streaming Dataset to Server...'
+                      : 'File Upload Complete'}
                   </span>
                   <span className="text-xs font-extrabold text-[#7C9082]">
                     {step === 'uploading' ? `${uploadPercent}%` : '100%'}
@@ -191,7 +200,7 @@ export default function UploadPage() {
                 {step === 'uploading' && uploadBytes.total > 0 && (
                   <div className="text-[11px] text-gray-400 font-semibold mt-1.5 flex justify-between">
                     <span>{formatBytes(uploadBytes.loaded)} of {formatBytes(uploadBytes.total)}</span>
-                    <span>High-Speed 8MB Buffer</span>
+                    <span>{chunkInfo.total > 1 ? `Multi-part Resilience (${chunkInfo.total} Chunks)` : 'Direct High-Speed Stream'}</span>
                   </div>
                 )}
               </div>

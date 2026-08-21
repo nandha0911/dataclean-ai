@@ -115,22 +115,50 @@ api.interceptors.response.use(
 
 // ── API helpers ─────────────────────────────────────────────────────────────
 
-/**
- * Upload a dataset file (CSV, Excel, JSON) with live upload progress tracking.
- * @param {File} file
- * @param {Function} onProgress (percent, loadedBytes, totalBytes)
- */
-export const uploadDataset = (file, onProgress) => {
-  const formData = new FormData();
-  formData.append('file', file, file.name);
-  return api.post('/upload', formData, {
-    onUploadProgress: (progressEvent) => {
-      if (progressEvent.total && onProgress) {
-        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-        onProgress(percent, progressEvent.loaded, progressEvent.total);
+export const uploadDataset = async (file, onProgress) => {
+  const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB per chunk to bypass cloud proxy body limits
+
+  // For small files (<= 10MB), use single-request direct upload
+  if (file.size <= 10 * 1024 * 1024) {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    return api.post('/upload', formData, {
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total && onProgress) {
+          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(percent, progressEvent.loaded, progressEvent.total, 1, 1);
+        }
       }
+    });
+  }
+
+  // For large files (> 10MB up to 5GB, e.g. 736MB), slice and stream in 10MB chunks
+  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+  const uploadId = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  let lastResponse = null;
+
+  for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+    const start = chunkIndex * CHUNK_SIZE;
+    const end = Math.min(start + CHUNK_SIZE, file.size);
+    const chunkBlob = file.slice(start, end);
+
+    const formData = new FormData();
+    formData.append('chunk', chunkBlob, `${file.name}.part${chunkIndex}`);
+    formData.append('upload_id', uploadId);
+    formData.append('chunk_index', String(chunkIndex));
+    formData.append('total_chunks', String(totalChunks));
+    formData.append('filename', file.name);
+
+    lastResponse = await api.post('/upload-chunk', formData);
+
+    if (onProgress) {
+      const loadedBytes = end;
+      const percent = Math.round((loadedBytes / file.size) * 100);
+      onProgress(percent, loadedBytes, file.size, chunkIndex + 1, totalChunks);
     }
-  });
+  }
+
+  return lastResponse;
 };
 
 /**
