@@ -274,11 +274,11 @@ export default function UploadPage() {
           >
             <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
             <div className="flex-1 text-xs font-semibold leading-relaxed">
-              <strong className="block font-bold text-sm mb-0.5">Upload Failed</strong>
+              <strong className="block font-bold text-sm mb-0.5">Upload Notice</strong>
               {errMsg}
             </div>
-            <button onClick={reset} className="opacity-70 hover:opacity-100 text-xs font-bold px-2 py-1 bg-white rounded-lg shadow-xs">
-              Retry
+            <button onClick={handleUpload} className="opacity-80 hover:opacity-100 text-xs font-bold px-3 py-1.5 bg-white text-gray-800 rounded-xl shadow-sm cursor-pointer transition-all">
+              Retry Upload
             </button>
           </motion.div>
         )}
