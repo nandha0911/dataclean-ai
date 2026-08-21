@@ -8,6 +8,7 @@ from core.config import settings
 import os
 import json
 import numpy as np
+import pandas as pd
 
 router = APIRouter()
 

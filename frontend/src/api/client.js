@@ -5,15 +5,66 @@
  */
 import axios from 'axios';
 
+let activeBackendUrl = null;
+
+/**
+ * Automatically discovers and connects to the active healthy backend.
+ */
+export const autoDiscoverBackend = async () => {
+  if (activeBackendUrl) return activeBackendUrl;
+
+  const candidates = [
+    typeof window !== 'undefined' ? localStorage.getItem('DATACLEAN_API_URL') : null,
+    import.meta.env.VITE_API_URL,
+    'https://dataclean-ai-production.up.railway.app',
+    'https://dataclean-ai.up.railway.app',
+    'https://nandha2425-dataclean-ai-backend.hf.space',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+  ].filter(Boolean).map(u => u.trim().replace(/\/+$/, '').replace(/\/api$/, ''));
+
+  const probe = async (target) => {
+    try {
+      const res = await axios.get(`${target}/health`, { timeout: 3500 });
+      if (res.status === 200 && (res.data?.status === 'healthy' || res.data?.app)) {
+        return target;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  };
+
+  const results = await Promise.allSettled(candidates.map(probe));
+  for (const r of results) {
+    if (r.status === 'fulfilled' && r.value) {
+      activeBackendUrl = r.value;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('DATACLEAN_API_URL', activeBackendUrl);
+      }
+      return activeBackendUrl;
+    }
+  }
+
+  return candidates[0] || (import.meta.env.PROD ? 'https://dataclean-ai-production.up.railway.app' : 'http://localhost:8000');
+};
+
+// Initiate auto-discovery immediately on client startup
+if (typeof window !== 'undefined') {
+  autoDiscoverBackend();
+}
+
 export const getBaseUrl = () => {
   let url = '';
   const localOverride = typeof window !== 'undefined' ? localStorage.getItem('DATACLEAN_API_URL') : null;
   if (localOverride && localOverride.trim()) {
     url = localOverride.trim().replace(/\/+$/, '');
+  } else if (activeBackendUrl) {
+    url = activeBackendUrl.replace(/\/+$/, '');
   } else if (import.meta.env.VITE_API_URL) {
     url = import.meta.env.VITE_API_URL.trim().replace(/\/+$/, '');
   } else {
-    url = import.meta.env.PROD ? 'https://nandha2425-dataclean-ai-backend.hf.space' : '';
+    url = import.meta.env.PROD ? 'https://dataclean-ai-production.up.railway.app' : 'http://localhost:8000';
   }
 
   if (url && !url.endsWith('/api')) {
