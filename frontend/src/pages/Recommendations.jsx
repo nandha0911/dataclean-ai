@@ -53,12 +53,24 @@ function getCategoryInfo(categoryStr) {
 function getCategoryColor(categoryStr) { return getCategoryInfo(categoryStr).color; }
 function getCategoryLetter(categoryStr) { return getCategoryInfo(categoryStr).id; }
 
+const isInformational = (rec) => {
+  const tech = (rec?.technique || '').toLowerCase();
+  const cat = (rec?.category || '').toLowerCase();
+  return (
+    cat.startsWith('a.') ||
+    cat.includes('profiling') ||
+    tech.includes('profiling') ||
+    tech.includes('summary')
+  );
+};
+
 // ── Single Recommendation Card ───────────────────────────────────────────────
 function RecCard({ rec, index, applied, onApply, applying }) {
   const [open, setOpen] = useState(false);
   const color = getCategoryColor(rec.category);
   const letter = getCategoryLetter(rec.category);
   const techLabel = rec.technique || rec.recommendation || 'Auto Fix';
+  const isInfo = isInformational(rec);
   const conf = typeof rec.confidence === 'number'
     ? (rec.confidence <= 1 ? Math.round(rec.confidence * 100) : Math.round(rec.confidence))
     : 85;
@@ -75,13 +87,13 @@ function RecCard({ rec, index, applied, onApply, applying }) {
           {/* Header row */}
           <div className="flex items-center gap-3 mb-3 flex-wrap">
             {/* Category badge */}
-            <span className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-extrabold text-white"
+            <span className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-extrabold text-white shadow-xs"
               style={{ background: color }}>
               {letter}
             </span>
             <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider"
               style={{ background: color + '18', color }}>
-              {rec.category || 'Issue'}
+              {rec.category || 'Quality Insight'}
             </span>
             <span className="text-xl font-bold text-gray-900">{rec.column || 'Dataset'}</span>
             {applied && <CheckCircle size={20} className="text-[#7C9082]" />}
@@ -95,7 +107,7 @@ function RecCard({ rec, index, applied, onApply, applying }) {
 
           {/* Technique */}
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-sm text-gray-400 font-medium">Recommended fix:</span>
+            <span className="text-sm text-gray-400 font-medium">{isInfo ? 'Insight:' : 'Recommended fix:'}</span>
             <span className="px-4 py-1.5 bg-gray-50 rounded-xl text-sm font-bold text-gray-800 border border-gray-200 shadow-sm">
               ✨ {techLabel}
             </span>
@@ -105,7 +117,7 @@ function RecCard({ rec, index, applied, onApply, applying }) {
         {/* Confidence panel */}
         <div className="w-52 p-5 bg-gray-50 rounded-2xl border border-gray-100 flex-shrink-0">
           <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
-            <span>Confidence</span>
+            <span>{isInfo ? 'Profile Score' : 'Confidence'}</span>
             <span style={{ color }}>{conf}%</span>
           </div>
           <div className="w-full h-2 bg-gray-200 rounded-full mb-4 overflow-hidden">
@@ -117,14 +129,20 @@ function RecCard({ rec, index, applied, onApply, applying }) {
               transition={{ duration: 0.8, delay: index * 0.03 }}
             />
           </div>
-          <button
-            onClick={() => onApply(rec)}
-            disabled={applied || applying}
-            className="w-full py-2.5 rounded-xl text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            style={applied ? { background: '#7C908218', color: '#7C9082' } : { background: color, color: 'white' }}
-          >
-            {applied ? '✓ Applied' : applying ? 'Applying…' : '⚡ Apply Fix'}
-          </button>
+          {isInfo ? (
+            <div className="w-full py-2.5 text-center rounded-xl text-xs font-bold bg-[#F2F5F3] text-[#7C9082] border border-[#7C9082]/20">
+              ✓ Profiling Insight
+            </div>
+          ) : (
+            <button
+              onClick={() => onApply(rec)}
+              disabled={applied || applying}
+              className="w-full py-2.5 rounded-xl text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
+              style={applied ? { background: '#7C908218', color: '#7C9082' } : { background: color, color: 'white' }}
+            >
+              {applied ? '✓ Applied' : applying ? 'Applying…' : '⚡ Apply Fix'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -216,19 +234,34 @@ export default function Recommendations() {
     }
   }, [currentDataset?.id]);
 
+  const actionableRecs = useMemo(() => {
+    return (recommendations || []).filter(r => !isInformational(r));
+  }, [recommendations]);
+
   const handleApplyAll = async () => {
-    if (!currentDataset?.id || !recommendations?.length) return;
+    if (!currentDataset?.id || !actionableRecs?.length) {
+      toast('No actionable cleaning operations needed.', { icon: 'ℹ️' });
+      return;
+    }
     setApplyingAll(true);
-    const pending = recommendations.filter(r => {
+    const pending = actionableRecs.filter(r => {
       const key = `${r.column}-${r.technique}`;
       return !applied.has(key);
     });
+
+    if (pending.length === 0) {
+      toast.success('All actionable fixes are already applied!');
+      setApplyingAll(false);
+      return;
+    }
+
     const ops = pending.map(r => ({
       column: r.column,
       operation: r.technique?.toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_') || 'auto',
       technique: r.technique,
       params: {}
     }));
+
     try {
       const res = await cleanDataset(currentDataset.id, { operations: ops });
       if (res?.data) {
@@ -247,7 +280,7 @@ export default function Recommendations() {
       setApplied(newApplied);
       toast.success(`✅ Applied ${pending.length} fixes successfully!`);
     } catch (err) {
-      toast.error('Some fixes could not be applied. Try individually.');
+      toast.error(err?.response?.data?.detail || err?.message || 'Some fixes could not be applied.');
     } finally {
       setApplyingAll(false);
     }
@@ -281,7 +314,7 @@ export default function Recommendations() {
       setApplied(prev => new Set([...prev, key]));
       toast.success(`✅ ${rec.technique} applied to "${rec.column}"`);
     } catch (err) {
-      toast.error(`Failed to apply: ${rec.technique}`);
+      toast.error(err?.response?.data?.detail || err?.message || `Failed to apply: ${rec.technique}`);
     } finally {
       setApplying(null);
     }

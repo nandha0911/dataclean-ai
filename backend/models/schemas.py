@@ -49,10 +49,11 @@ class Recommendation(BaseModel):
     technique: str
     confidence: float
     reason: str
-    advantages: List[str]
-    disadvantages: List[str]
-    alternatives: List[str]
-    expected_improvement: str
+    advantages: List[str] = Field(default_factory=list)
+    disadvantages: List[str] = Field(default_factory=list)
+    alternatives: List[str] = Field(default_factory=list)
+    expected_improvement: str = ""
+    category: Optional[str] = "General"
 
 class CleaningOperation(BaseModel):
     column: str
