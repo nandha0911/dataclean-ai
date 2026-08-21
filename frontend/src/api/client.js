@@ -74,7 +74,7 @@ export const getBaseUrl = () => {
 };
 
 const api = axios.create({
-  timeout: 300000, // 5 min for large enterprise datasets & heavy ML operations
+  timeout: 600000, // 10 min for multi-GB enterprise datasets & heavy ML operations
 });
 
 // Request interceptor to set dynamic baseURL on each call

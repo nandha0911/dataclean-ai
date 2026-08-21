@@ -83,14 +83,14 @@ export default function UploadPage() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: ACCEPTED_TYPES,
-    maxSize: 500 * 1024 * 1024, // 500 MB Max
+    maxSize: 5 * 1024 * 1024 * 1024, // 5 GB Max
     multiple: false,
   });
 
   const formatBytes = (bytes) => {
     if (!bytes || bytes === 0) return '0 B';
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
   };
@@ -155,7 +155,7 @@ export default function UploadPage() {
         <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">Upload your dataset</h2>
         <p className="text-gray-500 font-medium flex items-center justify-center gap-2">
           <span>Supports CSV, Excel (.xlsx, .xls), and JSON files up to</span>
-          <span className="px-2.5 py-0.5 bg-[#7C9082]/15 text-[#7C9082] rounded-full text-xs font-bold">500 MB</span>
+          <span className="px-2.5 py-0.5 bg-[#7C9082]/15 text-[#7C9082] rounded-full text-xs font-bold">5 GB Enterprise Max</span>
         </p>
       </div>
 
@@ -264,7 +264,7 @@ export default function UploadPage() {
                 {step === 'uploading' && uploadBytes.total > 0 && (
                   <div className="text-[11px] text-gray-400 font-semibold mt-1.5 flex justify-between">
                     <span>{formatBytes(uploadBytes.loaded)} of {formatBytes(uploadBytes.total)}</span>
-                    <span>High-Speed 4MB Buffer</span>
+                    <span>High-Speed 8MB Buffer</span>
                   </div>
                 )}
               </div>

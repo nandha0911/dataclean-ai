@@ -13,9 +13,9 @@ async def save_upload_file(upload_file: UploadFile, filename: str) -> str:
     safe_filename = os.path.basename(filename)
     file_path = os.path.join(settings.UPLOAD_DIR, safe_filename)
     await upload_file.seek(0)
-    # High-speed 4MB buffer chunks for fast transfer of large files
+    # High-speed 8MB buffer chunks for fast transfer of multi-GB files (>2GB)
     with open(file_path, "wb") as buffer:
-        while chunk := await upload_file.read(4 * 1024 * 1024):
+        while chunk := await upload_file.read(8 * 1024 * 1024):
             buffer.write(chunk)
     return file_path
 

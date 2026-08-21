@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "datasets"
     REPORTS_DIR: str = "reports"
     MODELS_DIR: str = "models"
-    MAX_FILE_SIZE_MB: int = 500
+    MAX_FILE_SIZE_MB: int = 5120
     ALLOWED_EXTENSIONS: list[str] = [".csv", ".xlsx", ".xls", ".json"]
 
     # ── Analysis thresholds ───────────────────────────────────────────────
