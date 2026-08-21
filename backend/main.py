@@ -80,6 +80,14 @@ app.include_router(clean.router,     prefix=API_PREFIX, tags=["Cleaning"])
 app.include_router(download.router,  prefix=API_PREFIX, tags=["Download"])
 app.include_router(report.router,    prefix=API_PREFIX, tags=["Reports & Chat"])
 
+# Also mount on root prefix so requests to /upload or /clean without /api succeed
+app.include_router(upload.router,    tags=["Upload Root"])
+app.include_router(analyze.router,   tags=["Analysis Root"])
+app.include_router(recommend.router, tags=["Recommendations Root"])
+app.include_router(clean.router,     tags=["Cleaning Root"])
+app.include_router(download.router,  tags=["Download Root"])
+app.include_router(report.router,    tags=["Reports & Chat Root"])
+
 
 # ── Static file serving (deferred until dirs exist) ──────────────────────
 @app.on_event("startup")

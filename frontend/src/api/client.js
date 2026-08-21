@@ -71,7 +71,7 @@ api.interceptors.response.use(
  */
 export const uploadDataset = (file, onProgress) => {
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append('file', file, file.name);
   return api.post('/upload', formData, {
     onUploadProgress: (progressEvent) => {
       if (progressEvent.total && onProgress) {
