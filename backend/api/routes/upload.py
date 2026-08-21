@@ -13,22 +13,30 @@ router = APIRouter()
 
 @router.post("/upload", response_model=DatasetUploadResponse)
 async def upload_dataset(file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
+    if not file or not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided in the upload request.")
+        
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in settings.ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail=f"File extension '{ext}' not allowed. Supported: {', '.join(settings.ALLOWED_EXTENSIONS)}")
+        raise HTTPException(status_code=400, detail=f"File extension '{ext}' is not supported. Supported extensions: {', '.join(settings.ALLOWED_EXTENSIONS)}")
     
-    file_path = await save_upload_file(file, file.filename)
+    try:
+        file_path = await save_upload_file(file, file.filename)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
     
     try:
         df = read_dataset(file_path)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Failed to parse dataset: {str(e)}")
         
     row_count, col_count = df.shape
+    if row_count == 0:
+        raise HTTPException(status_code=400, detail="The uploaded file contains 0 rows.")
 
     # Safe json-compatible preview
     preview = []
-    for row in df.head(5).to_dict(orient="records"):
+    for row in df.head(10).to_dict(orient="records"):
         clean_row = {}
         for k, v in row.items():
             if pd.isna(v) or v is None or (isinstance(v, float) and (np.isinf(v) or np.isnan(v))):

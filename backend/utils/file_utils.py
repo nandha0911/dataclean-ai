@@ -12,8 +12,10 @@ async def save_upload_file(upload_file: UploadFile, filename: str) -> str:
     ensure_dirs()
     safe_filename = os.path.basename(filename)
     file_path = os.path.join(settings.UPLOAD_DIR, safe_filename)
+    await upload_file.seek(0)
     with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(upload_file.file, buffer)
+        while chunk := await upload_file.read(1024 * 1024):
+            buffer.write(chunk)
     return file_path
 
 def read_dataset(file_path: str) -> pd.DataFrame:
