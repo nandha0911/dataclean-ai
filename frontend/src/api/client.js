@@ -23,7 +23,7 @@ export const getBaseUrl = () => {
 };
 
 const api = axios.create({
-  timeout: 120000, // 2 min for heavy ML operations
+  timeout: 300000, // 5 min for large enterprise datasets & heavy ML operations
 });
 
 // Request interceptor to set dynamic baseURL on each call
@@ -65,13 +65,21 @@ api.interceptors.response.use(
 // ── API helpers ─────────────────────────────────────────────────────────────
 
 /**
- * Upload a dataset file (CSV, Excel, JSON).
+ * Upload a dataset file (CSV, Excel, JSON) with live upload progress tracking.
  * @param {File} file
+ * @param {Function} onProgress (percent, loadedBytes, totalBytes)
  */
-export const uploadDataset = (file) => {
+export const uploadDataset = (file, onProgress) => {
   const formData = new FormData();
   formData.append('file', file);
-  return api.post('/upload', formData);
+  return api.post('/upload', formData, {
+    onUploadProgress: (progressEvent) => {
+      if (progressEvent.total && onProgress) {
+        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        onProgress(percent, progressEvent.loaded, progressEvent.total);
+      }
+    }
+  });
 };
 
 /**
