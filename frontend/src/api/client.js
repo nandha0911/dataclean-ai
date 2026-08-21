@@ -33,7 +33,12 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const msg = error.response?.data?.detail || error.message || 'Request failed';
+    let msg = error.response?.data?.detail || error.message || 'Request failed';
+    if (error.message === 'Network Error' || error.code === 'ERR_NETWORK') {
+      msg = 'Backend server unreachable. Check Settings to verify your live Backend URL.';
+    } else if (error.response?.status === 503) {
+      msg = 'Backend server is booting up or sleeping. Please retry in a few seconds.';
+    }
     console.error('[API Error]', msg, error.config?.url);
     return Promise.reject(new Error(msg));
   }

@@ -104,6 +104,7 @@ async def server_error(request: Request, exc: Exception) -> JSONResponse:
 
 # ── Health ─────────────────────────────────────────────────────────────────
 @app.get("/health", tags=["Health"])
+@app.get("/api/health", tags=["Health"])
 async def health_check() -> dict:
     return {"status": "healthy", "app": settings.APP_NAME, "version": settings.VERSION}
 

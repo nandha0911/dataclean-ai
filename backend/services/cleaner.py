@@ -407,10 +407,13 @@ class DataCleaner:
     # G. Categorical
     def merge_rare_categories(self, df: pd.DataFrame, column: str, threshold=0.01, replace_with='Other'):
         try:
-            counts = df[column].value_counts(normalize=True)
-            rare_cats = counts[counts < threshold].index
-            df[column] = df[column].replace(rare_cats, replace_with)
-        except: pass
+            if column in df.columns:
+                counts = df[column].value_counts(normalize=True)
+                rare_cats = set(counts[counts < threshold].index)
+                if rare_cats:
+                    df[column] = df[column].apply(lambda x: replace_with if x in rare_cats else x)
+        except Exception:
+            pass
         return df
         
     def map_categories(self, df: pd.DataFrame, column: str, mapping_dict: dict):
@@ -784,7 +787,7 @@ class DataCleaner:
                     df_clean = self.percentile_capping(df_clean, col, **params)
                 
                 # G. Categorical
-                elif action in ["merge_rare_categories", "merge_rare", "group_rare"]:
+                elif action in ["merge_rare_categories", "merge_rare", "group_rare", "rare_category_grouping", "rare_category_group", "rare_categories", "rare_category"]:
                     df_clean = self.merge_rare_categories(df_clean, col, **params)
                 elif action in ["map_categories", "map_cats", "apply_mapping"]:
                     df_clean = self.map_categories(df_clean, col, **params)
