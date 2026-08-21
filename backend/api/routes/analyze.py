@@ -25,16 +25,17 @@ async def analyze_dataset(dataset_id: int, db: AsyncSession = Depends(get_db)):
         if not dataset:
             raise HTTPException(status_code=404, detail="Dataset not found. Please upload your dataset first.")
         
-    df = read_dataset(dataset.original_path)
+    file_path = dataset.cleaned_path if (dataset.cleaned_path and os.path.exists(dataset.cleaned_path)) else dataset.original_path
+    df = read_dataset(file_path, max_rows=50000)
     
     # Run analysis
-    analysis_dict = analyzer.analyze(df, dataset_id)
-    score_dict = scorer.calculate_score(analysis_dict, len(df))
+    analysis_dict = analyzer.analyze(df, dataset.id)
+    score_dict = scorer.calculate_score(analysis_dict, dataset.row_count or len(df))
     analysis_dict['quality_score'] = score_dict
     
     # Save job result
     job = AnalysisJob(
-        dataset_id=dataset_id,
+        dataset_id=dataset.id,
         status="completed",
         completed_at=datetime.utcnow(),
         result_json=analysis_dict

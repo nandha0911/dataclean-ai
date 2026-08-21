@@ -490,8 +490,13 @@ export default function Recommendations() {
               {recommendations?.length > 0 ? 'No results match your filter.' : 'No recommendations yet.'}
             </p>
             {!recommendations?.length && (
-              <button onClick={fetchRecs} className="btn-nd btn-nd-primary text-sm">
-                Run AI Analysis
+              <button
+                onClick={fetchRecs}
+                disabled={loading}
+                className="btn-nd btn-nd-sage text-sm font-bold shadow-soft flex items-center gap-2"
+              >
+                {loading ? <RefreshCw size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                <span>{loading ? 'Running AI Engine…' : 'Run AI Analysis'}</span>
               </button>
             )}
           </div>

@@ -34,13 +34,14 @@ async def get_recommendations(dataset_id: int, db: AsyncSession = Depends(get_db
     # Auto-run analysis on the fly if not yet analyzed
     if not job or not job.result_json:
         file_path = dataset.cleaned_path if dataset.cleaned_path else dataset.original_path
-        df = read_dataset(file_path)
-        analysis_dict = analyzer.analyze(df, dataset_id)
-        score_dict = scorer.calculate_score(analysis_dict, len(df))
+        # Read up to 50k rows for ultra-fast, zero-OOM recommendations on 3M+ row files
+        df = read_dataset(file_path, max_rows=50000)
+        analysis_dict = analyzer.analyze(df, dataset.id)
+        score_dict = scorer.calculate_score(analysis_dict, dataset.row_count or len(df))
         analysis_dict['quality_score'] = score_dict
         
         job = AnalysisJob(
-            dataset_id=dataset_id,
+            dataset_id=dataset.id,
             status="completed",
             completed_at=datetime.utcnow(),
             result_json=analysis_dict
