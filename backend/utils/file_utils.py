@@ -19,11 +19,25 @@ async def save_upload_file(upload_file: UploadFile, filename: str) -> str:
             buffer.write(chunk)
     return file_path
 
+import csv
+
+def detect_csv_delimiter(file_path: str, encoding: str = 'utf-8') -> str:
+    """Sniff CSV delimiter (comma, semicolon, tab, pipe) from sample."""
+    try:
+        with open(file_path, 'r', encoding=encoding, errors='ignore') as f:
+            sample = f.read(8192)
+            if sample:
+                sniffer = csv.Sniffer()
+                dialect = sniffer.sniff(sample, delimiters=',;\t|')
+                return dialect.delimiter
+    except Exception:
+        pass
+    return ','
+
 def get_dataset_preview_and_count(file_path: str) -> tuple[int, int, list]:
     """
     High-speed streaming metadata extractor for large (100MB - 5GB) datasets.
-    Extracts total row count and top preview without loading the full file into memory.
-    Prevents Out-Of-Memory (OOM) crashes on multi-GB uploads.
+    Extracts total row count, detects delimiters, and returns top preview without OOM.
     """
     ext = os.path.splitext(file_path)[1].lower()
     if ext == ".csv":
@@ -33,11 +47,12 @@ def get_dataset_preview_and_count(file_path: str) -> tuple[int, int, list]:
                 row_count += chunk.count(b'\n')
         row_count = max(1, row_count - 1)  # Exclude header row
         
-        # Read preview (top 10 rows) using tiny RAM (<1MB)
+        # Read preview (top 10 rows) using tiny RAM (<1MB) with delimiter sniffing
         df_preview = None
         for enc in ['utf-8', 'utf-8-sig', 'latin-1', 'iso-8859-1', 'cp1252']:
             try:
-                df_preview = pd.read_csv(file_path, nrows=10, encoding=enc, low_memory=False)
+                sep = detect_csv_delimiter(file_path, enc)
+                df_preview = pd.read_csv(file_path, sep=sep, nrows=10, encoding=enc, low_memory=False)
                 break
             except Exception:
                 continue
@@ -59,16 +74,17 @@ def get_dataset_preview_and_count(file_path: str) -> tuple[int, int, list]:
 def read_dataset(file_path: str, max_rows: int = None) -> pd.DataFrame:
     ext = os.path.splitext(file_path)[1].lower()
     if ext == ".csv":
-        # Robust multi-encoding fallback for international/special characters
+        # Robust multi-encoding & multi-delimiter fallback
         encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'iso-8859-1', 'cp1252']
         for enc in encodings:
             try:
-                return pd.read_csv(file_path, encoding=enc, nrows=max_rows, low_memory=False)
+                sep = detect_csv_delimiter(file_path, enc)
+                return pd.read_csv(file_path, sep=sep, encoding=enc, nrows=max_rows, low_memory=False)
             except (UnicodeDecodeError, UnicodeError):
                 continue
             except Exception:
                 try:
-                    return pd.read_csv(file_path, encoding=enc, nrows=max_rows, on_bad_lines='skip', low_memory=False)
+                    return pd.read_csv(file_path, sep=None, engine='python', encoding=enc, nrows=max_rows, on_bad_lines='skip')
                 except Exception:
                     continue
         return pd.read_csv(file_path, encoding='latin-1', nrows=max_rows, on_bad_lines='skip', low_memory=False)
