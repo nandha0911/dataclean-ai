@@ -29,6 +29,5 @@ ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH \
     PYTHONUNBUFFERED=1
 
-EXPOSE 7860
-
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
+# Run uvicorn supporting both Railway ($PORT) and Hugging Face (7860)
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-7860}
