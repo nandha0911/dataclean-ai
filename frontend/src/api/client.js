@@ -6,14 +6,20 @@
 import axios from 'axios';
 
 export const getBaseUrl = () => {
+  let url = '';
   const localOverride = typeof window !== 'undefined' ? localStorage.getItem('DATACLEAN_API_URL') : null;
   if (localOverride && localOverride.trim()) {
-    return `${localOverride.trim().replace(/\/$/, '')}/api`;
+    url = localOverride.trim().replace(/\/+$/, '');
+  } else if (import.meta.env.VITE_API_URL) {
+    url = import.meta.env.VITE_API_URL.trim().replace(/\/+$/, '');
+  } else {
+    url = import.meta.env.PROD ? 'https://nandha2425-dataclean-ai-backend.hf.space' : '';
   }
-  if (import.meta.env.VITE_API_URL) {
-    return `${import.meta.env.VITE_API_URL.trim().replace(/\/$/, '')}/api`;
+
+  if (url && !url.endsWith('/api')) {
+    url = `${url}/api`;
   }
-  return import.meta.env.PROD ? 'https://nandha2425-dataclean-ai-backend.hf.space/api' : '/api';
+  return url || '/api';
 };
 
 const api = axios.create({
@@ -33,14 +39,26 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    let msg = error.response?.data?.detail || error.message || 'Request failed';
-    if (error.message === 'Network Error' || error.code === 'ERR_NETWORK') {
+    let msg = '';
+    const detail = error.response?.data?.detail;
+    if (detail) {
+      if (typeof detail === 'string') msg = detail;
+      else if (Array.isArray(detail)) msg = detail.map(d => d.msg || JSON.stringify(d)).join('; ');
+      else msg = JSON.stringify(detail);
+    } else if (error.response?.data?.message) {
+      msg = error.response.data.message;
+    } else if (error.message === 'Network Error' || error.code === 'ERR_NETWORK') {
       msg = 'Backend server unreachable. Check Settings to verify your live Backend URL.';
     } else if (error.response?.status === 503) {
       msg = 'Backend server is booting up or sleeping. Please retry in a few seconds.';
+    } else {
+      msg = error.message || 'Request failed';
     }
-    console.error('[API Error]', msg, error.config?.url);
-    return Promise.reject(new Error(msg));
+
+    console.error('[API Error]', msg, error.config?.url, error.response?.status);
+    const customError = new Error(msg);
+    customError.response = error.response;
+    return Promise.reject(customError);
   }
 );
 

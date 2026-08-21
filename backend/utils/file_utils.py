@@ -10,7 +10,8 @@ def ensure_dirs():
 
 async def save_upload_file(upload_file: UploadFile, filename: str) -> str:
     ensure_dirs()
-    file_path = os.path.join(settings.UPLOAD_DIR, filename)
+    safe_filename = os.path.basename(filename)
+    file_path = os.path.join(settings.UPLOAD_DIR, safe_filename)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(upload_file.file, buffer)
     return file_path
