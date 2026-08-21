@@ -19,34 +19,36 @@ class QualityScorer:
         total_missing = sum(col.get('missing_count', 0) for col in columns)
         total_cells = num_cols * total_rows if total_rows > 0 else 1
         
-        # 1. Completeness
-        completeness = max(0, (1 - (total_missing / total_cells))) * 100
+        # 1. Completeness: % of non-missing values across all cells
+        completeness = max(0.0, min(100.0, (1.0 - (total_missing / total_cells)) * 100.0))
         
         # 2. Consistency: check inconsistent categories / casing issues
         cols_with_inconsistent = sum(1 for col in columns if col.get('inconsistent_categories'))
-        consistency = max(0, 100 - (cols_with_inconsistent / num_cols) * 100)
+        consistency = max(0.0, min(100.0, 100.0 - (cols_with_inconsistent / num_cols) * 100.0))
         
-        # 3. Accuracy: outlier ratio
+        # 3. Accuracy: check presence of extreme outliers / impossible values
+        impossible_count = sum(1 for col in columns if col.get('has_impossible_values'))
         total_outliers = sum(col.get('outliers_iqr', 0) for col in columns)
-        accuracy = max(0, (1 - (total_outliers / total_cells))) * 100
+        accuracy_penalty = min(30.0, (total_outliers / total_cells) * 100.0 + (impossible_count / num_cols) * 10.0)
+        accuracy = max(70.0, 100.0 - accuracy_penalty)
         
         # 4. Uniqueness: check full dataset duplicate rows
         full_row_duplicates = analysis_dict.get('full_row_duplicates', 0)
-        uniqueness = max(0, (1 - (full_row_duplicates / total_rows))) * 100 if total_rows > 0 else 100.0
+        uniqueness = max(0.0, min(100.0, (1.0 - (full_row_duplicates / total_rows)) * 100.0)) if total_rows > 0 else 100.0
         
         # 5. Validity: check constant or type errors
         invalid_cols = sum(1 for col in columns if col.get('constant') or col.get('possible_incorrect_types'))
-        validity = max(0, 100 - (invalid_cols / num_cols) * 50)
+        validity = max(80.0, 100.0 - (invalid_cols / num_cols) * 20.0)
         
         # 6. Integrity
         integrity = 100.0
         
         overall_score = (
-            completeness * 0.3 +
+            completeness * 0.30 +
             accuracy * 0.25 +
             consistency * 0.15 +
             uniqueness * 0.15 +
-            validity * 0.1 +
+            validity * 0.10 +
             integrity * 0.05
         )
         
