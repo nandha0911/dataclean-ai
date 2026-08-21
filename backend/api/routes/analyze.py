@@ -19,7 +19,11 @@ async def analyze_dataset(dataset_id: int, db: AsyncSession = Depends(get_db)):
     dataset = result.scalar_one_or_none()
     
     if not dataset:
-        raise HTTPException(status_code=404, detail="Dataset not found")
+        # Fall back to most recent dataset if ID was from previous session/restart
+        fallback = await db.execute(select(Dataset).order_by(Dataset.id.desc()))
+        dataset = fallback.scalars().first()
+        if not dataset:
+            raise HTTPException(status_code=404, detail="Dataset not found. Please upload your dataset first.")
         
     df = read_dataset(dataset.original_path)
     

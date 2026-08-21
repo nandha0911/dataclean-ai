@@ -43,7 +43,11 @@ async def clean_dataset(dataset_id: int, request: Union[CleaningRequest, List[di
     dataset = result.scalar_one_or_none()
     
     if not dataset:
-        raise HTTPException(status_code=404, detail="Dataset not found")
+        # Fall back to most recent dataset if ID was from previous session/restart
+        fallback = await db.execute(select(Dataset).order_by(Dataset.id.desc()))
+        dataset = fallback.scalars().first()
+        if not dataset:
+            raise HTTPException(status_code=404, detail="Dataset not found. Please upload your dataset first.")
 
     try:
         # Always read the LATEST version: cleaned file if it exists, otherwise original

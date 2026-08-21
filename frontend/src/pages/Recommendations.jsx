@@ -365,6 +365,10 @@ export default function Recommendations() {
     );
   }
 
+  const actionablePendingCount = useMemo(() => {
+    return actionableRecs.filter(r => !applied.has(`${r.column}-${r.technique}`)).length;
+  }, [actionableRecs, applied]);
+
   return (
     <div className="flex flex-col gap-8 max-w-7xl mx-auto">
       {/* Header */}
@@ -373,20 +377,25 @@ export default function Recommendations() {
           <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">AI Recommendations</h2>
           <p className="text-gray-500 font-medium">
             {recommendations?.length
-              ? `${recommendations.length} recommendations across ${presentCategories.length - 1} categories`
+              ? `${recommendations.length} recommendations across ${Math.max(1, presentCategories.length - 1)} categories (${actionableRecs.length} actionable fixes)`
               : 'Run the AI engine to get cleaning recommendations.'}
           </p>
         </div>
         <div className="flex gap-3">
-          {recommendations?.length > 0 && (
+          {actionableRecs?.length > 0 && (
             <button
               onClick={handleApplyAll}
-              disabled={applyingAll || applied.size === recommendations.length}
-              className="btn-nd shadow-soft gap-2 font-bold text-white"
+              disabled={applyingAll || actionablePendingCount === 0}
+              className="btn-nd shadow-soft gap-2 font-bold text-white transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               style={{ background: applyingAll ? '#9aad9f' : '#7C9082' }}
             >
               <Zap size={16} className={applyingAll ? 'animate-pulse' : ''} />
-              {applyingAll ? 'Applying All…' : applied.size === recommendations.length ? '✓ All Applied' : `⚡ Apply All Fixes (${recommendations.length - applied.size})`}
+              {applyingAll
+                ? 'Applying Fixes…'
+                : actionablePendingCount === 0
+                ? '✓ All Fixes Applied'
+                : `⚡ Apply All Fixes (${actionablePendingCount})`
+              }
             </button>
           )}
           <button onClick={fetchRecs} disabled={loading}
