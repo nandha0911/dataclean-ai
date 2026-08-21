@@ -58,8 +58,9 @@ export default function UploadPage() {
     } catch (err) {
       clearInterval(iv);
       setStep('error');
-      setErrMsg(err?.message || 'Upload failed — is the backend running?');
-      toast.error('Upload failed');
+      const msg = err?.message || 'Upload failed — check backend server connection';
+      setErrMsg(msg);
+      toast.error(msg);
       return;
     }
 

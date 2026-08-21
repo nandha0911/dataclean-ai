@@ -53,9 +53,7 @@ api.interceptors.response.use(
 export const uploadDataset = (file) => {
   const formData = new FormData();
   formData.append('file', file);
-  return api.post('/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  return api.post('/upload', formData);
 };
 
 /**
