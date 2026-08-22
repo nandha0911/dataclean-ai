@@ -19,11 +19,15 @@ export default function Settings() {
   }, []);
 
   const handleTestConnection = async () => {
-    const target = (apiUrl.trim() || (import.meta.env.PROD ? 'https://nandha2425-dataclean-ai-backend.hf.space' : 'http://localhost:8000')).replace(/\/$/, '');
+    let raw = apiUrl.trim();
+    if (!raw) {
+      raw = import.meta.env.PROD ? 'https://dataclean-ai-backend.onrender.com' : 'http://localhost:8000';
+    }
+    const cleanUrl = raw.replace(/\/+$/, '').replace(/\/api$/, '');
     setTesting(true);
     setStatus(null);
     try {
-      const res = await axios.get(`${target}/health`, { timeout: 8000 });
+      const res = await axios.get(`${cleanUrl}/health`, { timeout: 20000 });
       if (res.data?.status === 'healthy' || res.status === 200) {
         setStatus('connected');
         setStatusMsg(`Connected successfully! Version: ${res.data?.version || '1.0.0'}`);
@@ -34,7 +38,7 @@ export default function Settings() {
       }
     } catch (err) {
       setStatus('error');
-      setStatusMsg(`Cannot connect to ${target}. (Error: ${err.message})`);
+      setStatusMsg(`Cannot connect to ${cleanUrl}. (Error: ${err.message})`);
       toast.error('Backend connection failed. Please check the URL.');
     } finally {
       setTesting(false);
