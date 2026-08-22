@@ -14,6 +14,14 @@ import subprocess
 import sys
 import zipfile
 import boto3
+import tempfile
+
+if sys.stdout.encoding != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass
 
 # ── Configuration ────────────────────────────────────────────────────────
 FUNCTION_NAME   = "dataclean-ai-backend"
@@ -23,8 +31,8 @@ HANDLER         = "main.handler"          # main.py → handler = Mangum(app)
 TIMEOUT         = 900                     # 15 minutes max
 MEMORY          = 1024                    # 1 GB RAM (ML models need this)
 BACKEND_DIR     = os.path.join(os.path.dirname(__file__), "backend")
-BUILD_DIR       = "/tmp/lambda_build"
-ZIP_PATH        = "/tmp/dataclean_lambda.zip"
+BUILD_DIR       = os.path.join(tempfile.gettempdir(), "lambda_build")
+ZIP_PATH        = os.path.join(tempfile.gettempdir(), "dataclean_lambda.zip")
 
 def run(cmd, cwd=None):
     print(f"  $ {cmd}")
