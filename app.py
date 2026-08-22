@@ -15,6 +15,16 @@ if backend_path not in sys.path:
 from main import app as fastapi_app
 import gradio as gr
 
+# Hugging Face ZeroGPU compatibility handler
+try:
+    import spaces
+    @spaces.GPU
+    def _zero_gpu_init():
+        return True
+    _zero_gpu_init()
+except Exception:
+    pass
+
 # Build clean Gradio status UI
 with gr.Blocks(title="DataClean AI — Backend Server") as demo:
     gr.Markdown("# 🚀 DataClean AI Backend Server")
