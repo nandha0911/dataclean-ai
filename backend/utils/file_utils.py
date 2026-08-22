@@ -63,7 +63,13 @@ def get_dataset_preview_and_count(file_path: str) -> tuple[int, int, list]:
         records = df_preview.fillna("").to_dict(orient="records")
         return row_count, col_count, records
     elif ext in [".xls", ".xlsx"]:
-        df = pd.read_excel(file_path)
+        engine = "xlrd" if ext == ".xls" else "openpyxl"
+        try:
+            df = pd.read_excel(file_path, engine=engine)
+        except Exception:
+            # Fallback: try the other engine
+            fallback = "openpyxl" if engine == "xlrd" else "xlrd"
+            df = pd.read_excel(file_path, engine=fallback)
         return len(df), len(df.columns), df.head(10).fillna("").to_dict(orient="records")
     elif ext == ".json":
         df = pd.read_json(file_path)
@@ -89,7 +95,12 @@ def read_dataset(file_path: str, max_rows: int = None) -> pd.DataFrame:
                     continue
         return pd.read_csv(file_path, encoding='latin-1', nrows=max_rows, on_bad_lines='skip', low_memory=False)
     elif ext in [".xls", ".xlsx"]:
-        return pd.read_excel(file_path, nrows=max_rows)
+        engine = "xlrd" if ext == ".xls" else "openpyxl"
+        try:
+            return pd.read_excel(file_path, engine=engine, nrows=max_rows)
+        except Exception:
+            fallback = "openpyxl" if engine == "xlrd" else "xlrd"
+            return pd.read_excel(file_path, engine=fallback, nrows=max_rows)
     elif ext == ".json":
         df = pd.read_json(file_path)
         return df.head(max_rows) if max_rows else df
