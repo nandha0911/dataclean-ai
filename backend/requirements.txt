@@ -24,3 +24,4 @@ seaborn
 aiofiles
 python-dotenv
 httpx
+mangum

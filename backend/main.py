@@ -120,3 +120,13 @@ async def health_check() -> dict:
 @app.get("/", tags=["Health"])
 async def root() -> dict:
     return {"message": f"Welcome to {settings.APP_NAME}", "docs": "/docs"}
+
+
+# ── AWS Lambda Handler (via Mangum) ───────────────────────────────────────
+# When deployed to AWS Lambda, the `handler` is the entry point.
+# Mangum wraps the FastAPI ASGI app so Lambda understands HTTP events.
+try:
+    from mangum import Mangum
+    handler = Mangum(app, lifespan="off")
+except ImportError:
+    pass  # mangum not installed — running locally with uvicorn
