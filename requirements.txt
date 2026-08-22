@@ -27,3 +27,4 @@ python-dotenv>=1.0.0
 httpx>=0.25.0
 mangum>=0.17.0
 gradio>=4.0.0
+spaces
