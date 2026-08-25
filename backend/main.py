@@ -117,9 +117,15 @@ async def health_check() -> dict:
     return {"status": "healthy", "app": settings.APP_NAME, "version": settings.VERSION}
 
 
-@app.get("/", tags=["Health"])
-async def root() -> dict:
-    return {"message": f"Welcome to {settings.APP_NAME}", "docs": "/docs"}
+# ── Mount Frontend Single-Page App (SPA) if dist exists ───────────────────
+# Enables hosting both React Frontend and FastAPI Backend under 1 single URL
+frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist"))
+if os.path.isdir(frontend_dist):
+    app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
+else:
+    @app.get("/", tags=["Health"])
+    async def root() -> dict:
+        return {"message": f"Welcome to {settings.APP_NAME}", "docs": "/docs"}
 
 
 # ── AWS Lambda Handler (via Mangum) ───────────────────────────────────────
