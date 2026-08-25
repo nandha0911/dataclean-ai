@@ -16,8 +16,9 @@ COPY backend/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
-# Copy backend files
+# Copy backend and frontend build files
 COPY backend/ /app/
+COPY frontend/dist/ /frontend/dist/
 
 # Create runtime directories and grant permissions
 RUN mkdir -p /app/datasets /app/reports /app/models \
