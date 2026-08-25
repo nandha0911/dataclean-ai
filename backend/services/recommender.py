@@ -312,10 +312,10 @@ class AIRecommender:
                     column=col_name,
                     technique="Robust Scaling",
                     confidence=85,
-                    reason=f"High variance (CV > 100).",
-                    advantages=["Reduces impact of large spread"],
-                    disadvantages=["Changes data scale"],
-                    alternatives=["Log Transform"],
+                    reason=f"High variance (CV > 100). Recommended only if preparing data for ML model training.",
+                    advantages=["Reduces impact of large spread", "Robust to outliers"],
+                    disadvantages=["⚠️ Changes data scale — values will no longer be in original units (e.g., prices become decimals). Use only for ML, not for data export."],
+                    alternatives=["Log Transform", "Winsorization"],
                     expected_improvement="More stable model training.",
                     category="E. Numerical"
                 ))
@@ -622,18 +622,18 @@ class AIRecommender:
                     category="N. Feature"
                 ))
 
-            # O. Transformation
+            # O. Transformation (ML preprocessing — only recommend for clearly skewed data)
             if skewness is not None:
                 if abs(skewness) > 2:
                     recommendations.append(self._build_rec(
                         column=col_name,
                         technique="Yeo-Johnson Transformation",
                         confidence=87,
-                        reason=f"Highly skewed distribution (skewness = {skewness:.2f}).",
-                        advantages=["Handles positive and negative values", "Normalizes distribution"],
-                        disadvantages=["Less interpretable"],
-                        alternatives=["Log Transformation", "Min-Max Normalization"],
-                        expected_improvement="More normally distributed data.",
+                        reason=f"Highly skewed distribution (skewness = {skewness:.2f}). Use only for ML model training.",
+                        advantages=["Handles positive and negative values", "Normalizes distribution for ML models"],
+                        disadvantages=["⚠️ Transforms values to non-original scale. Use only for ML, not for data export."],
+                        alternatives=["Log Transformation", "Winsorization"],
+                        expected_improvement="More normally distributed data for ML models.",
                         category="O. Transformation"
                     ))
                 elif abs(skewness) > 1:
@@ -641,25 +641,14 @@ class AIRecommender:
                         column=col_name,
                         technique="Log Transformation",
                         confidence=85,
-                        reason=f"Skewed distribution (skewness = {skewness:.2f}).",
-                        advantages=["Normalizes distribution"],
-                        disadvantages=["Requires strictly positive values usually"],
-                        alternatives=["Yeo-Johnson Transformation"],
-                        expected_improvement="Reduced skewness.",
+                        reason=f"Skewed distribution (skewness = {skewness:.2f}). Use only for ML model training.",
+                        advantages=["Normalizes distribution for ML models"],
+                        disadvantages=["⚠️ Converts values to log scale (e.g., price 1200 → 7.09). Use only for ML, not for data export."],
+                        alternatives=["Winsorization", "IQR Outlier Removal"],
+                        expected_improvement="Reduced skewness for ML models.",
                         category="O. Transformation"
                     ))
-            if dtype == 'numeric':
-                recommendations.append(self._build_rec(
-                    column=col_name,
-                    technique="Min-Max Normalization",
-                    confidence=78,
-                    reason="Numeric data might benefit from scaling.",
-                    advantages=["Binds data to [0, 1] range"],
-                    disadvantages=["Sensitive to outliers"],
-                    alternatives=["Standard Scaling"],
-                    expected_improvement="Uniform feature scaling.",
-                    category="O. Transformation"
-                ))
+            # NOTE: Removed blanket MinMax Normalization — it corrupts values for non-ML use cases
 
             # Q. Imbalanced
             if class_imbalance:

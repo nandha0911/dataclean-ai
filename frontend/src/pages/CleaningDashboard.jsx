@@ -399,13 +399,49 @@ export default function CleaningDashboard() {
 
   const addAllAiSuggestions = () => {
     if (!recommendations?.length) return toast.error('No AI suggestions available');
-    const items = recommendations.map(rec => ({
-      column: rec.column,
-      technique: (rec.technique || 'mean_imputation').toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_'),
-      id: Date.now() + Math.random(),
-    }));
-    setPipeline(prev => [...prev, ...items]);
-    toast.success(`Added ${items.length} AI suggestions to pipeline`);
+
+    // Only auto-apply SAFE cleaning operations — block ML preprocessing that transforms data scale/values
+    const DESTRUCTIVE_OPS = new Set([
+      'robust_scaling', 'standard_scaling', 'minmax_scaling', 'max_abs_scaling',
+      'log_transformation', 'log_transform', 'log',
+      'power_transformation', 'power_transform',
+      'sqrt_transformation', 'sqrt_transform', 'sqrt',
+      'quantile_transformation', 'quantile_transform',
+      'label_encoding', 'label_encode',
+      'one_hot_encoding', 'onehot', 'one_hot',
+      'ordinal_encoding', 'ordinal_encode',
+      'binary_encoding', 'binary_encode',
+      'frequency_encoding', 'freq_encode',
+      'target_encoding', 'target_encode',
+      'smote', 'smote_oversample',
+      'random_oversample', 'random_undersample',
+      'binning', 'discretize',
+      'pseudonymize', 'remove_pii',
+    ]);
+
+    const safe = [];
+    const blocked = [];
+
+    recommendations.forEach(rec => {
+      const tech = (rec.technique || 'mean_imputation').toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
+      if (DESTRUCTIVE_OPS.has(tech)) {
+        blocked.push(rec.technique);
+      } else {
+        safe.push({ column: rec.column, technique: tech, id: Date.now() + Math.random() });
+      }
+    });
+
+    if (safe.length === 0) {
+      return toast.error('All AI suggestions are ML transformations. Add them manually if needed.');
+    }
+
+    setPipeline(prev => [...prev, ...safe]);
+
+    if (blocked.length > 0) {
+      toast.success(`Added ${safe.length} safe cleaning operations. Skipped ${blocked.length} ML transformations (scaling/encoding) — add manually if needed.`, { duration: 5000 });
+    } else {
+      toast.success(`Added ${safe.length} AI suggestions to pipeline`);
+    }
   };
 
   const runPipeline = async () => {
