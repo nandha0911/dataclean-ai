@@ -41,18 +41,20 @@ class DataCleaner:
     def knn_imputation(self, df: pd.DataFrame, columns: list, k: int=5):
         try:
             cols = [c for c in columns if c in df.columns]
-            if cols:
-                imputer = KNNImputer(n_neighbors=k)
-                df[cols] = imputer.fit_transform(df[cols].select_dtypes(include=[np.number]))
+            num_cols = [c for c in cols if pd.api.types.is_numeric_dtype(df[c])]
+            if num_cols:
+                imputer = KNNImputer(n_neighbors=min(k, len(df)-1))
+                df[num_cols] = imputer.fit_transform(df[num_cols])
         except: pass
         return df
 
     def mice_imputation(self, df: pd.DataFrame, columns: list):
         try:
             cols = [c for c in columns if c in df.columns]
-            if cols:
+            num_cols = [c for c in cols if pd.api.types.is_numeric_dtype(df[c])]
+            if num_cols:
                 imputer = IterativeImputer(random_state=42)
-                df[cols] = imputer.fit_transform(df[cols].select_dtypes(include=[np.number]))
+                df[num_cols] = imputer.fit_transform(df[num_cols])
         except: pass
         return df
 
@@ -128,24 +130,44 @@ class DataCleaner:
         except: pass
         return df
 
+    def _safe_numeric_cols(self, df: pd.DataFrame, columns: list) -> list:
+        """Filter out ID-like columns that should not be scaled."""
+        safe = []
+        for c in columns:
+            if c not in df.columns:
+                continue
+            cl = str(c).lower()
+            # Skip ID/order columns
+            if any(k in cl for k in ['_id', 'order_id', 'ref', 'key', 'uid', 'uuid']):
+                continue
+            if pd.api.types.is_numeric_dtype(df[c]) and df[c].nunique() > 1:
+                safe.append(c)
+        return safe
+
     def robust_scaling(self, df: pd.DataFrame, columns: list):
         try:
-            scaler = RobustScaler()
-            df[columns] = scaler.fit_transform(df[columns])
+            cols = self._safe_numeric_cols(df, columns if isinstance(columns, list) else [columns])
+            if cols:
+                scaler = RobustScaler()
+                df[cols] = scaler.fit_transform(df[cols])
         except: pass
         return df
 
     def standard_scaling(self, df: pd.DataFrame, columns: list):
         try:
-            scaler = StandardScaler()
-            df[columns] = scaler.fit_transform(df[columns])
+            cols = self._safe_numeric_cols(df, columns if isinstance(columns, list) else [columns])
+            if cols:
+                scaler = StandardScaler()
+                df[cols] = scaler.fit_transform(df[cols])
         except: pass
         return df
 
     def minmax_scaling(self, df: pd.DataFrame, columns: list):
         try:
-            scaler = MinMaxScaler()
-            df[columns] = scaler.fit_transform(df[columns])
+            cols = self._safe_numeric_cols(df, columns if isinstance(columns, list) else [columns])
+            if cols:
+                scaler = MinMaxScaler()
+                df[cols] = scaler.fit_transform(df[cols])
         except: pass
         return df
 
@@ -238,9 +260,19 @@ class DataCleaner:
         return df
 
     # B. Missing Data
-    def constant_imputation(self, df: pd.DataFrame, column: str, value=0):
+    def constant_imputation(self, df: pd.DataFrame, column: str, value=None):
         try:
-            df[column].fillna(value, inplace=True)
+            if column not in df.columns:
+                return df
+            # If no value specified, infer a safe default: median for numeric, mode for categorical
+            if value is None:
+                num = pd.to_numeric(df[column], errors='coerce')
+                if not num.dropna().empty:
+                    value = num.median()
+                else:
+                    modes = df[column].dropna().mode()
+                    value = modes.iloc[0] if not modes.empty else 'Unknown'
+            df[column] = df[column].fillna(value)
         except: pass
         return df
 
@@ -918,10 +950,11 @@ class DataCleaner:
         for col in df_after.columns:
             if col in df_before.columns:
                 orig_non_nulls = df_before[col].dropna()
+                after_non_nulls = df_after[col].dropna()
                 is_int_col = False
                 col_lower = str(col).lower()
-                
-                if any(k in col_lower for k in ['age', 'count', 'year', 'qty', 'quantity', 'id', 'num_', 'nbr', 'days', 'months', 'score']):
+
+                if any(k in col_lower for k in ['age', 'count', 'year', 'qty', 'quantity', 'num_', 'nbr', 'days', 'months', 'score']):
                     is_int_col = True
                 elif not orig_non_nulls.empty and pd.api.types.is_numeric_dtype(orig_non_nulls):
                     try:
@@ -929,9 +962,17 @@ class DataCleaner:
                             is_int_col = True
                     except Exception:
                         pass
-                
+
                 if is_int_col and pd.api.types.is_numeric_dtype(df_after[col]):
                     try:
+                        # Only restore int type if values are still in original scale
+                        # (not minmax/standard scaled to 0-1 or z-score range)
+                        if not orig_non_nulls.empty and not after_non_nulls.empty:
+                            orig_max = float(orig_non_nulls.max())
+                            after_max = float(after_non_nulls.max())
+                            # If original max was > 1 but after max is <= 1, scaling was applied — skip restoration
+                            if orig_max > 1.5 and after_max <= 1.5:
+                                continue
                         df_after[col] = df_after[col].round()
                         if not df_after[col].isnull().any():
                             df_after[col] = df_after[col].astype('int64')
