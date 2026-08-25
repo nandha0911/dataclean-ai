@@ -15,9 +15,10 @@ export const autoDiscoverBackend = async () => {
 
   const candidates = [
     typeof window !== 'undefined' ? localStorage.getItem('DATACLEAN_API_URL') : null,
+    typeof window !== 'undefined' && !window.location.hostname.includes('netlify.app') && !window.location.hostname.includes('localhost') ? window.location.origin : null,
     import.meta.env.VITE_API_URL,
+    'https://dataclean-ai-backend.onrender.com',
     'https://dataclean-ai-production.up.railway.app',
-    'https://dataclean-ai.up.railway.app',
     'https://nandha2425-dataclean-ai-backend.hf.space',
     'http://localhost:8000',
     'http://127.0.0.1:8000',
