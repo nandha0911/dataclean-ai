@@ -36,11 +36,60 @@ def detect_csv_delimiter(file_path: str, encoding: str = 'utf-8') -> str:
 
 def get_dataset_preview_and_count(file_path: str) -> tuple[int, int, list]:
     """
-    High-speed streaming metadata extractor for large (100MB - 5GB) datasets.
+    High-speed streaming metadata extractor for datasets (CSV, XLS, XLSX, JSON).
     Extracts total row count, detects delimiters, and returns top preview without OOM.
+    Resilient to format mismatches (e.g. JSON/CSV saved with .xls extension, or non-zip .xls).
     """
     ext = os.path.splitext(file_path)[1].lower()
-    if ext == ".csv":
+    
+    if ext in [".xls", ".xlsx", ".xlsm", ".xlsb"]:
+        # 1. Try Excel engines
+        primary_engine = "xlrd" if ext == ".xls" else "openpyxl"
+        secondary_engine = "openpyxl" if ext == ".xls" else "xlrd"
+        
+        for eng in [primary_engine, secondary_engine]:
+            try:
+                df = pd.read_excel(file_path, engine=eng)
+                return len(df), len(df.columns), df.head(10).fillna("").to_dict(orient="records")
+            except Exception:
+                continue
+
+        # 2. Try JSON (in case file was saved as JSON text with .xls extension)
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                header_text = f.read(200).strip()
+                if header_text.startswith('[') or header_text.startswith('{'):
+                    df = pd.read_json(file_path)
+                    return len(df), len(df.columns), df.head(10).fillna("").to_dict(orient="records")
+        except Exception:
+            pass
+
+        # 3. Try HTML table (many portal exports are HTML tables with .xls extension)
+        try:
+            tables = pd.read_html(file_path)
+            if tables:
+                df = tables[0]
+                return len(df), len(df.columns), df.head(10).fillna("").to_dict(orient="records")
+        except Exception:
+            pass
+
+        # 4. Try CSV / Delimited text
+        for enc in ['utf-8', 'utf-8-sig', 'latin-1', 'iso-8859-1', 'cp1252']:
+            try:
+                sep = detect_csv_delimiter(file_path, enc)
+                df = pd.read_csv(file_path, sep=sep, encoding=enc, nrows=10, low_memory=False)
+                row_count = 0
+                with open(file_path, 'rb') as f:
+                    while chunk := f.read(8 * 1024 * 1024):
+                        row_count += chunk.count(b'\n')
+                row_count = max(1, row_count - 1)
+                return row_count, len(df.columns), df.fillna("").to_dict(orient="records")
+            except Exception:
+                continue
+
+        raise ValueError(f"Could not parse Excel file '{os.path.basename(file_path)}'. The file may be corrupt or an unsupported format.")
+
+    elif ext == ".csv":
         row_count = 0
         with open(file_path, 'rb') as f:
             while chunk := f.read(8 * 1024 * 1024):
@@ -62,15 +111,7 @@ def get_dataset_preview_and_count(file_path: str) -> tuple[int, int, list]:
         col_count = len(df_preview.columns)
         records = df_preview.fillna("").to_dict(orient="records")
         return row_count, col_count, records
-    elif ext in [".xls", ".xlsx"]:
-        engine = "xlrd" if ext == ".xls" else "openpyxl"
-        try:
-            df = pd.read_excel(file_path, engine=engine)
-        except Exception:
-            # Fallback: try the other engine
-            fallback = "openpyxl" if engine == "xlrd" else "xlrd"
-            df = pd.read_excel(file_path, engine=fallback)
-        return len(df), len(df.columns), df.head(10).fillna("").to_dict(orient="records")
+
     elif ext == ".json":
         df = pd.read_json(file_path)
         return len(df), len(df.columns), df.head(10).fillna("").to_dict(orient="records")
@@ -79,7 +120,50 @@ def get_dataset_preview_and_count(file_path: str) -> tuple[int, int, list]:
 
 def read_dataset(file_path: str, max_rows: int = None) -> pd.DataFrame:
     ext = os.path.splitext(file_path)[1].lower()
-    if ext == ".csv":
+    
+    # 1. Excel files (.xls, .xlsx, .xlsm, .xlsb)
+    if ext in [".xls", ".xlsx", ".xlsm", ".xlsb"]:
+        primary_engine = "xlrd" if ext == ".xls" else "openpyxl"
+        secondary_engine = "openpyxl" if ext == ".xls" else "xlrd"
+        
+        # Try primary engine then secondary engine
+        for engine in [primary_engine, secondary_engine]:
+            try:
+                return pd.read_excel(file_path, engine=engine, nrows=max_rows)
+            except Exception:
+                continue
+
+        # If both fail, check if the file is actually JSON (e.g. previously saved as json with .xls name)
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                header_text = f.read(200).strip()
+                if header_text.startswith('[') or header_text.startswith('{'):
+                    df = pd.read_json(file_path)
+                    return df.head(max_rows) if max_rows else df
+        except Exception:
+            pass
+
+        # Try HTML table
+        try:
+            tables = pd.read_html(file_path)
+            if tables:
+                df = tables[0]
+                return df.head(max_rows) if max_rows else df
+        except Exception:
+            pass
+
+        # Try CSV/Delimited text fallback
+        for enc in ['utf-8', 'utf-8-sig', 'latin-1', 'iso-8859-1', 'cp1252']:
+            try:
+                sep = detect_csv_delimiter(file_path, enc)
+                return pd.read_csv(file_path, sep=sep, encoding=enc, nrows=max_rows, low_memory=False)
+            except Exception:
+                continue
+
+        # Final fallback
+        return pd.read_csv(file_path, encoding='latin-1', nrows=max_rows, on_bad_lines='skip', low_memory=False)
+
+    elif ext == ".csv":
         # Robust multi-encoding & multi-delimiter fallback
         encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'iso-8859-1', 'cp1252']
         for enc in encodings:
@@ -94,13 +178,6 @@ def read_dataset(file_path: str, max_rows: int = None) -> pd.DataFrame:
                 except Exception:
                     continue
         return pd.read_csv(file_path, encoding='latin-1', nrows=max_rows, on_bad_lines='skip', low_memory=False)
-    elif ext in [".xls", ".xlsx"]:
-        engine = "xlrd" if ext == ".xls" else "openpyxl"
-        try:
-            return pd.read_excel(file_path, engine=engine, nrows=max_rows)
-        except Exception:
-            fallback = "openpyxl" if engine == "xlrd" else "xlrd"
-            return pd.read_excel(file_path, engine=fallback, nrows=max_rows)
     elif ext == ".json":
         df = pd.read_json(file_path)
         return df.head(max_rows) if max_rows else df
@@ -112,6 +189,9 @@ def get_dataset_path(filename: str) -> str:
 
 def get_cleaned_path(filename: str) -> str:
     name, ext = os.path.splitext(filename)
+    # Convert legacy .xls to modern .xlsx for cleaned output so openpyxl writes clean Excel files
+    if ext.lower() == '.xls':
+        ext = '.xlsx'
     return os.path.join(settings.UPLOAD_DIR, f"{name}_cleaned{ext}")
 
 def get_report_path(dataset_id: int) -> str:

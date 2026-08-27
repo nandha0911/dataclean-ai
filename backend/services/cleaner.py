@@ -733,7 +733,7 @@ class DataCleaner:
                     df_clean = self.interpolation(df_clean, col, **params)
                 elif action in ["delete_rows_with_missing", "drop_missing", "delete_missing"]:
                     df_clean = self.delete_rows_with_missing(df_clean, col)
-                elif action in ["delete_column", "drop_column", "delete_col"]:
+                elif action in ["delete_column", "drop_column", "delete_col", "delete_column_(id_column)", "delete_column_id_column", "delete_column_(id)", "delete_id_column", "delete_column_id"]:
                     df_clean = self.delete_column(df_clean, col)
                 elif action in ["z_score_outlier_removal", "zscore_outlier_removal", "zscore"]:
                     df_clean = self.zscore_outlier_removal(df_clean, col, **params)
@@ -779,7 +779,7 @@ class DataCleaner:
                     df_clean = self.listwise_deletion(df_clean)
                 
                 # C. Duplicates
-                elif action in ["fuzzy_deduplication", "fuzzy_dedup", "fuzzy_duplicates"]:
+                elif action in ["fuzzy_deduplication", "fuzzy_dedup", "fuzzy_duplicates", "fuzzy_duplicate_detection"]:
                     df_clean = self.fuzzy_deduplication(df_clean, col, **params)
                 elif action in ["keep_first_occurrence", "keep_first", "first_duplicate"]:
                     df_clean = self.keep_first_occurrence(df_clean)
@@ -901,7 +901,7 @@ class DataCleaner:
                     df_clean = self.mask_data(df_clean, col, **params)
                 elif action in ["remove_pii", "drop_pii", "clean_pii"]:
                     df_clean = self.remove_pii(df_clean, [col] if isinstance(col, str) else col)
-                elif action in ["pseudonymize", "hash_data", "hash_values"]:
+                elif action in ["pseudonymize", "pseudonymization", "hash_data", "hash_values"]:
                     df_clean = self.pseudonymize(df_clean, col)
                 
                 # W. Time-series
@@ -910,7 +910,10 @@ class DataCleaner:
 
                 # ── Informational-only / analysis-only operations (no data change) ──
                 elif action in [
-                    "data_profiling_summary", "data_profiling", "profiling_summary",
+                    "summary_statistics", "data_profiling_summary", "data_profiling", "profiling_summary",
+                    "data_auditing", "cardinality_analysis", "column_level_profiling", "data_type_inspection",
+                    "distribution_analysis", "frequency_analysis", "row_level_profiling", "schema_inspection",
+                    "unique_value_analysis", "data_quality_assessment", "data_quality_scoring",
                     "zero_value_validation", "zero_validation", "check_zeros",
                     "future_date_detection", "future_date_check", "check_future_dates",
                     "impossible_value_detection", "check_impossible_values",

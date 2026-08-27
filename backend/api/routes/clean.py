@@ -71,10 +71,14 @@ async def clean_dataset(dataset_id: int, request: Union[CleaningRequest, List[di
         # Save depending on extension
         if cleaned_path.endswith('.csv'):
             df_clean.to_csv(cleaned_path, index=False)
-        elif cleaned_path.endswith('.xlsx'):
-            df_clean.to_excel(cleaned_path, index=False)
-        else:
+        elif cleaned_path.endswith(('.xlsx', '.xls')):
+            if cleaned_path.endswith('.xls'):
+                cleaned_path = cleaned_path[:-4] + '.xlsx'
+            df_clean.to_excel(cleaned_path, index=False, engine='openpyxl')
+        elif cleaned_path.endswith('.json'):
             df_clean.to_json(cleaned_path, orient="records")
+        else:
+            df_clean.to_csv(cleaned_path, index=False)
             
         dataset.cleaned_path = cleaned_path
         dataset.row_count, dataset.col_count = df_clean.shape
