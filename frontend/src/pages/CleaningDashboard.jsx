@@ -400,23 +400,32 @@ export default function CleaningDashboard() {
   const addAllAiSuggestions = () => {
     if (!recommendations?.length) return toast.error('No AI suggestions available');
 
-    // Only auto-apply SAFE cleaning operations — block ML preprocessing that transforms data scale/values
+    // Only auto-apply SAFE cleaning operations — block destructive/irreversible ops
     const DESTRUCTIVE_OPS = new Set([
+      // ML Preprocessing (changes scale/values)
       'robust_scaling', 'standard_scaling', 'minmax_scaling', 'max_abs_scaling',
       'log_transformation', 'log_transform', 'log',
       'power_transformation', 'power_transform',
       'sqrt_transformation', 'sqrt_transform', 'sqrt',
       'quantile_transformation', 'quantile_transform',
+      // Encoding (changes data representation)
       'label_encoding', 'label_encode',
       'one_hot_encoding', 'onehot', 'one_hot',
       'ordinal_encoding', 'ordinal_encode',
       'binary_encoding', 'binary_encode',
       'frequency_encoding', 'freq_encode',
       'target_encoding', 'target_encode',
+      // Resampling
       'smote', 'smote_oversample',
       'random_oversample', 'random_undersample',
       'binning', 'discretize',
-      'pseudonymize', 'remove_pii',
+      // Privacy / Irreversible transformations
+      'pseudonymize', 'pseudonymization', 'remove_pii', 'mask_data',
+      // Column deletion — never auto-delete columns
+      'delete_column', 'drop_column', 'delete_col',
+      'delete_column_(id_column)', 'delete_column_id_column', 'delete_id_column',
+      // Fuzzy dedup on text — can wrongly merge distinct names
+      'fuzzy_deduplication', 'fuzzy_dedup', 'fuzzy_duplicate_detection',
     ]);
 
     const safe = [];

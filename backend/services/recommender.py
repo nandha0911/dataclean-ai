@@ -600,14 +600,14 @@ class AIRecommender:
             if unique_identifier:
                 recommendations.append(self._build_rec(
                     column=col_name,
-                    technique="Delete Column (ID column)",
+                    technique="Data Profiling Summary",
                     confidence=95,
-                    reason="Column appears to be a unique ID, which ML models shouldn't use.",
-                    advantages=["Prevents overfitting to IDs"],
-                    disadvantages=["Loses traceability if not stored elsewhere"],
-                    alternatives=["Set as Index"],
-                    expected_improvement="Better generalization.",
-                    category="N. Feature"
+                    reason=f"Column '{col_name}' appears to be a unique identifier (ID). Keep it for traceability — do NOT delete unless building an ML model.",
+                    advantages=["Useful for traceability and joins"],
+                    disadvantages=["Should be excluded from ML feature sets"],
+                    alternatives=["Set as Index if needed for ML"],
+                    expected_improvement="Awareness of ID column.",
+                    category="A. Data Profiling"
                 ))
             if highly_correlated_with and len(highly_correlated_with) > 0:
                 recommendations.append(self._build_rec(
@@ -769,11 +769,11 @@ class AIRecommender:
                     column=col_name,
                     technique="Pseudonymization",
                     confidence=80,
-                    reason="Column appears to contain names (high cardinality PII).",
+                    reason="Column appears to contain names (high cardinality PII). Only use for GDPR/privacy compliance.",
                     advantages=["Anonymizes individuals while retaining structure"],
-                    disadvantages=["Requires mapping storage for reversal"],
-                    alternatives=["Data Masking"],
-                    expected_improvement="Privacy preserving identifiers.",
+                    disadvantages=["⚠️ IRREVERSIBLE — Converts names to MD5 hashes (e.g., 'John Doe' → 'df45f2...'). Do NOT use if you want to keep readable names."],
+                    alternatives=["Data Masking (keeps partial name)", "Skip if privacy is not required"],
+                    expected_improvement="Privacy-compliant dataset (names become unreadable).",
                     category="V. Privacy"
                 ))
 
