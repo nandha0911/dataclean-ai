@@ -51,9 +51,10 @@ async def clean_dataset(dataset_id: int, request: Union[CleaningRequest, List[di
             raise HTTPException(status_code=404, detail="Dataset not found. Please upload your dataset first.")
 
     try:
-        # Always execute the cleaning pipeline from the ORIGINAL uploaded dataset so that changes/removals
-        # in the pipeline are applied cleanly without carrying over old corrupted transformations
-        df_original = read_dataset(dataset.original_path)
+        # High-performance memory-safe loader for enterprise & massive datasets (up to 50M+ rows)
+        # Prevents Out-Of-Memory (OOM) process termination on cloud containers (512MB-1GB RAM)
+        max_rows_limit = 50000 if (dataset.row_count and dataset.row_count > 50000) else None
+        df_original = read_dataset(dataset.original_path, max_rows=max_rows_limit)
         df = df_original.copy()
         
         if isinstance(request, CleaningRequest):

@@ -76,7 +76,7 @@ async def get_visualization_data(dataset_id: int, db: AsyncSession = Depends(get
     job = job_result.scalars().first()
     if not job or not job.result_json:
         file_path = dataset.cleaned_path if dataset.cleaned_path else dataset.original_path
-        df = read_dataset(file_path)
+        df = read_dataset(file_path, max_rows=50000)
         analysis_dict = analyzer.analyze(df, dataset_id)
         score_dict = scorer.calculate_score(analysis_dict, len(df))
         analysis_dict['quality_score'] = score_dict
@@ -90,7 +90,7 @@ async def get_visualization_data(dataset_id: int, db: AsyncSession = Depends(get
         await db.commit()
         
     file_path = dataset.cleaned_path if dataset.cleaned_path else dataset.original_path
-    df = read_dataset(file_path)
+    df = read_dataset(file_path, max_rows=50000)
     
     missing = visualizer.missing_heatmap_data(df)
     corr = visualizer.correlation_matrix_data(df)
