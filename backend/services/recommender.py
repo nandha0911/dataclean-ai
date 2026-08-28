@@ -222,13 +222,13 @@ class AIRecommender:
                 if dtype == 'text':
                     recommendations.append(self._build_rec(
                         column=col_name,
-                        technique="Fuzzy Deduplication",
-                        confidence=80,
-                        reason="Text column has duplicate or near-duplicate values.",
-                        advantages=["Catches typos and slight variations"],
-                        disadvantages=["Computationally heavy"],
-                        alternatives=["Exact Match Deduplication"],
-                        expected_improvement="Standardized text entries.",
+                        technique="Text Standardization",
+                        confidence=90,
+                        reason="Text column contains duplicate or unstandardized casing.",
+                        advantages=["Trims whitespace and standardizes casing", "Preserves exact text identities"],
+                        disadvantages=[],
+                        alternatives=["Category Standardization"],
+                        expected_improvement="Clean, standardized text entries.",
                         category="C. Duplicates"
                     ))
                 elif dtype == 'categorical':
@@ -236,7 +236,7 @@ class AIRecommender:
                         column=col_name,
                         technique="Category Standardization",
                         confidence=85,
-                        reason="Categorical duplicates might indicate slight misspellings.",
+                        reason="Categorical duplicates might indicate slight misspellings or casing variations.",
                         advantages=["Cleaner category groups"],
                         disadvantages=["Manual review often needed"],
                         alternatives=[],
@@ -764,17 +764,17 @@ class AIRecommender:
                     expected_improvement="Secure, compliant dataset.",
                     category="V. Privacy"
                 ))
-            if 'name' in col_name_lower and cardinality > 0.5:
+            if 'name' in col_name_lower:
                 recommendations.append(self._build_rec(
                     column=col_name,
-                    technique="Pseudonymization",
-                    confidence=80,
-                    reason="Column appears to contain names (high cardinality PII). Only use for GDPR/privacy compliance.",
-                    advantages=["Anonymizes individuals while retaining structure"],
-                    disadvantages=["⚠️ IRREVERSIBLE — Converts names to MD5 hashes (e.g., 'John Doe' → 'df45f2...'). Do NOT use if you want to keep readable names."],
-                    alternatives=["Data Masking (keeps partial name)", "Skip if privacy is not required"],
-                    expected_improvement="Privacy-compliant dataset (names become unreadable).",
-                    category="V. Privacy"
+                    technique="Text Standardization",
+                    confidence=96,
+                    reason="Names should be standardized with proper Title Case and whitespace trimming.",
+                    advantages=["Clean, consistent capitalized names", "Removes trailing/accidental spaces"],
+                    disadvantages=[],
+                    alternatives=["Category Standardization"],
+                    expected_improvement="Consistent, readable names.",
+                    category="H. Text"
                 ))
 
             # W. Time-series
