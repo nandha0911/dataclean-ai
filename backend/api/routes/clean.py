@@ -51,10 +51,10 @@ async def clean_dataset(dataset_id: int, request: Union[CleaningRequest, List[di
             raise HTTPException(status_code=404, detail="Dataset not found. Please upload your dataset first.")
 
     try:
-        # Always read the LATEST version: cleaned file if it exists, otherwise original
-        active_path = dataset.cleaned_path if dataset.cleaned_path else dataset.original_path
-        df_original = read_dataset(dataset.original_path)   # keep original for delta calc
-        df = read_dataset(active_path)                       # this is what we actually clean
+        # Always execute the cleaning pipeline from the ORIGINAL uploaded dataset so that changes/removals
+        # in the pipeline are applied cleanly without carrying over old corrupted transformations
+        df_original = read_dataset(dataset.original_path)
+        df = df_original.copy()
         
         if isinstance(request, CleaningRequest):
             operations_list = [op.dict() for op in request.operations]
