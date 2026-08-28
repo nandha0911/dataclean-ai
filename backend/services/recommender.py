@@ -116,91 +116,110 @@ class AIRecommender:
                     category="B. Missing Data"
                 ))
                 
-            if dtype == 'numeric':
-                if 0 < missing_pct < 5:
-                    recommendations.append(self._build_rec(
-                        column=col_name,
-                        technique="Mean Imputation",
-                        confidence=95,
-                        reason=f"Missing percentage is low ({missing_pct}%). Mean imputation is efficient.",
-                        advantages=["Simple and fast"],
-                        disadvantages=["Can be sensitive to outliers"],
-                        alternatives=["Median Imputation"],
-                        expected_improvement="Complete dataset without losing rows.",
-                        category="B. Missing Data"
-                    ))
-                elif 5 <= missing_pct <= 30 and skewness is not None and abs(skewness) > 1:
+            raw_dtype = str(dtype).lower()
+            is_numeric = raw_dtype in ['numeric', 'integer', 'float', 'int', 'number', 'double'] or col_name_lower in ['salary', 'age', 'price', 'quantity', 'cost', 'income', 'amount', 'score']
+            is_categorical = raw_dtype in ['categorical', 'category', 'boolean', 'bool']
+            is_text = raw_dtype in ['text', 'string', 'object', 'str']
+
+            # B. Missing Data
+            if blank_count > 0:
+                recommendations.append(self._build_rec(
+                    column=col_name,
+                    technique="Empty String Detection",
+                    confidence=97,
+                    reason=f"Column has {blank_count} empty strings acting as missing values.",
+                    advantages=["Properly identifies missing data hidden as blanks"],
+                    disadvantages=[],
+                    alternatives=[],
+                    expected_improvement="Better missing value handling.",
+                    category="B. Missing Data"
+                ))
+                
+            if is_numeric and (missing_count > 0 or blank_count > 0):
+                if missing_pct <= 15:
+                    if skewness is not None and abs(skewness) > 1:
+                        recommendations.append(self._build_rec(
+                            column=col_name,
+                            technique="Median Imputation",
+                            confidence=95,
+                            reason=f"Column has {missing_count} missing values ({missing_pct:.1f}%) and skewed distribution. Median imputation preserves central tendency robustly.",
+                            advantages=["Robust to outliers", "Replaces NULLs accurately"],
+                            disadvantages=[],
+                            alternatives=["Mean Imputation", "KNN Imputation"],
+                            expected_improvement="100% complete column without missing values.",
+                            category="B. Missing Data"
+                        ))
+                    else:
+                        recommendations.append(self._build_rec(
+                            column=col_name,
+                            technique="Mean Imputation",
+                            confidence=95,
+                            reason=f"Column has {missing_count} missing values ({missing_pct:.1f}%). Mean imputation efficiently fills missing numeric values.",
+                            advantages=["Preserves mean of distribution", "Replaces NULLs cleanly"],
+                            disadvantages=["Can be slightly sensitive to extreme outliers"],
+                            alternatives=["Median Imputation"],
+                            expected_improvement="100% complete column without missing values.",
+                            category="B. Missing Data"
+                        ))
+                elif 15 < missing_pct <= 35:
                     recommendations.append(self._build_rec(
                         column=col_name,
                         technique="Median Imputation",
                         confidence=92,
-                        reason=f"Moderate missing data ({missing_pct}%) and skewed distribution.",
-                        advantages=["Robust to outliers"],
-                        disadvantages=["Ignores feature correlations"],
+                        reason=f"Moderate missing data ({missing_pct:.1f}%). Median imputation safely completes the column.",
+                        advantages=["Robust to outliers", "Maintains numeric distribution"],
+                        disadvantages=[],
                         alternatives=["KNN Imputation"],
-                        expected_improvement="Complete data without skewing the distribution.",
+                        expected_improvement="100% complete column without missing values.",
                         category="B. Missing Data"
                     ))
-                elif 30 < missing_pct <= 50:
+                elif 35 < missing_pct <= 50:
                     recommendations.append(self._build_rec(
                         column=col_name,
                         technique="KNN Imputation",
                         confidence=88,
-                        reason=f"High missing data ({missing_pct}%). KNN utilizes feature similarities.",
-                        advantages=["Captures complex relationships"],
-                        disadvantages=["Computationally expensive"],
-                        alternatives=["MICE Imputation"],
-                        expected_improvement="More accurate imputation.",
+                        reason=f"High missing data ({missing_pct:.1f}%). KNN utilizes multi-feature similarities.",
+                        advantages=["Captures complex multivariate relationships"],
+                        disadvantages=["Computationally heavier"],
+                        alternatives=["MICE Imputation", "Median Imputation"],
+                        expected_improvement="Accurate multi-variable imputation.",
                         category="B. Missing Data"
                     ))
+                elif missing_pct > 50:
                     recommendations.append(self._build_rec(
                         column=col_name,
-                        technique="MICE Imputation",
+                        technique="Delete Column",
+                        confidence=70,
+                        reason=f"Over 50% of data is missing ({missing_pct:.1f}%).",
+                        advantages=["Removes a largely uninformative feature"],
+                        disadvantages=["Might lose hidden signals"],
+                        alternatives=["Advanced Imputation"],
+                        expected_improvement="Reduced noise.",
+                        category="B. Missing Data"
+                    ))
+                else:
+                    recommendations.append(self._build_rec(
+                        column=col_name,
+                        technique="Median Imputation",
                         confidence=85,
-                        reason=f"High missing data ({missing_pct}%). MICE models each feature conditionally.",
-                        advantages=["Statistically robust for multiple imputation"],
-                        disadvantages=["Slow on large datasets"],
-                        alternatives=["KNN Imputation"],
-                        expected_improvement="Robust statistical preservation.",
+                        reason=f"Missing numeric data ({missing_pct:.1f}%).",
+                        advantages=["Fills missing values"],
+                        disadvantages=[],
+                        alternatives=["Mean Imputation"],
+                        expected_improvement="Complete data.",
                         category="B. Missing Data"
                     ))
 
-            if missing_pct > 50:
-                recommendations.append(self._build_rec(
-                    column=col_name,
-                    technique="Delete Column",
-                    confidence=70,
-                    reason=f"Over 50% of data is missing ({missing_pct}%).",
-                    advantages=["Removes a largely uninformative feature"],
-                    disadvantages=["Might lose hidden signals"],
-                    alternatives=["Advanced Imputation"],
-                    expected_improvement="Reduced noise.",
-                    category="B. Missing Data"
-                ))
-                
-            if dtype == 'categorical' and missing_count > 0:
+            elif (is_categorical or is_text) and (missing_count > 0 or blank_count > 0):
                 recommendations.append(self._build_rec(
                     column=col_name,
                     technique="Mode Imputation",
                     confidence=90,
-                    reason="Categorical column has missing values.",
-                    advantages=["Preserves category mode"],
-                    disadvantages=["May alter category frequencies"],
-                    alternatives=["Create 'Unknown' category"],
-                    expected_improvement="Completes categorical feature.",
-                    category="B. Missing Data"
-                ))
-                
-            if missing_count > 0:
-                recommendations.append(self._build_rec(
-                    column=col_name,
-                    technique="Missing Indicator Variable",
-                    confidence=75,
-                    reason="Adding a binary indicator can capture patterns in missingness.",
-                    advantages=["Preserves info about missingness"],
-                    disadvantages=["Increases dimensionality"],
-                    alternatives=[],
-                    expected_improvement="Models can learn from missingness.",
+                    reason=f"Column has {missing_count} missing values. Mode imputation replaces missing entries with the most frequent value.",
+                    advantages=["Preserves category distribution", "Fills missing text values"],
+                    disadvantages=["May slightly increase mode frequency"],
+                    alternatives=["Fill with 'Unknown'"],
+                    expected_improvement="100% complete column.",
                     category="B. Missing Data"
                 ))
                 

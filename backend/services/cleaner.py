@@ -16,25 +16,37 @@ from scipy import stats
 class DataCleaner:
     def mean_imputation(self, df: pd.DataFrame, column: str):
         try:
-            num = pd.to_numeric(df[column], errors='coerce')
-            val = num.mean() if not pd.isna(num.mean()) else 0
-            df[column] = df[column].fillna(val)
+            if column in df.columns:
+                df[column] = df[column].replace(['NULL', 'null', 'None', 'none', 'NaN', 'nan', 'N/A', 'n/a', 'NA', 'na', '?', '-', ''], np.nan)
+                num = pd.to_numeric(df[column], errors='coerce')
+                val = num.mean()
+                if pd.notna(val):
+                    val = int(round(val)) if (num.dropna() % 1 == 0).all() else round(val, 2)
+                    df[column] = num.fillna(val)
         except: pass
         return df
 
     def median_imputation(self, df: pd.DataFrame, column: str):
         try:
-            num = pd.to_numeric(df[column], errors='coerce')
-            val = num.median() if not pd.isna(num.median()) else 0
-            df[column] = df[column].fillna(val)
+            if column in df.columns:
+                df[column] = df[column].replace(['NULL', 'null', 'None', 'none', 'NaN', 'nan', 'N/A', 'n/a', 'NA', 'na', '?', '-', ''], np.nan)
+                num = pd.to_numeric(df[column], errors='coerce')
+                val = num.median()
+                if pd.notna(val):
+                    val = int(round(val)) if (num.dropna() % 1 == 0).all() else round(val, 2)
+                    df[column] = num.fillna(val)
         except: pass
         return df
 
     def mode_imputation(self, df: pd.DataFrame, column: str):
         try:
-            modes = df[column].dropna().mode()
-            if not modes.empty:
-                df[column] = df[column].fillna(modes.iloc[0])
+            if column in df.columns:
+                df[column] = df[column].replace(['NULL', 'null', 'None', 'none', 'NaN', 'nan', 'N/A', 'n/a', 'NA', 'na', '?', '-', ''], np.nan)
+                valid = df[column].dropna()
+                if not valid.empty:
+                    modes = valid.mode()
+                    if not modes.empty:
+                        df[column] = df[column].fillna(modes.iloc[0])
         except: pass
         return df
 
