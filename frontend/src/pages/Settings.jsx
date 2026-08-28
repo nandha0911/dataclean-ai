@@ -129,20 +129,58 @@ export default function Settings() {
       <NordicCard title="System Parameters" icon={SettingsIcon} color="dusty">
         <div className="flex flex-col gap-5 mt-2">
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1.5">Max Dataset Size (MB)</label>
-            <input type="number" defaultValue={100} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm" />
+            <div className="flex justify-between items-center mb-1.5">
+              <label className="block text-sm font-bold text-gray-700">Max Dataset Size (MB)</label>
+              <span className="text-xs font-bold text-[#7C9082] bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
+                5 GB Limit
+              </span>
+            </div>
+            <input 
+              type="number" 
+              defaultValue={localStorage.getItem('DATACLEAN_MAX_SIZE_MB') || 5120} 
+              id="input-max-size"
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:bg-white focus:border-[#7C9082] outline-none transition-all" 
+            />
+            <p className="text-xs text-gray-400 mt-1">Default: 5120 MB (5 GB) supporting large enterprise CSVs/Excel files</p>
           </div>
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1.5">Outlier Z-Score Threshold</label>
-            <input type="number" defaultValue={3.0} step="0.1" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm" />
+            <input 
+              type="number" 
+              defaultValue={localStorage.getItem('DATACLEAN_ZSCORE_THRESHOLD') || 3.0} 
+              step="0.1" 
+              id="input-zscore"
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:bg-white focus:border-[#7C9082] outline-none transition-all" 
+            />
           </div>
           <div>
             <label className="block text-sm font-bold text-gray-700 mb-1.5">Imputation Strategy</label>
-            <select defaultValue="auto" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm cursor-pointer">
+            <select 
+              defaultValue={localStorage.getItem('DATACLEAN_IMPUTATION_STRATEGY') || "auto"} 
+              id="select-imputation"
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm cursor-pointer font-medium focus:bg-white focus:border-[#7C9082] outline-none transition-all"
+            >
               <option value="auto">AI Recommended (Auto)</option>
               <option value="fast">Fast (Mean / Mode)</option>
               <option value="accurate">Accurate (KNN / MICE)</option>
             </select>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={() => {
+                const maxSize = document.getElementById('input-max-size')?.value || 5120;
+                const zscore = document.getElementById('input-zscore')?.value || 3.0;
+                const strategy = document.getElementById('select-imputation')?.value || 'auto';
+                localStorage.setItem('DATACLEAN_MAX_SIZE_MB', maxSize);
+                localStorage.setItem('DATACLEAN_ZSCORE_THRESHOLD', zscore);
+                localStorage.setItem('DATACLEAN_IMPUTATION_STRATEGY', strategy);
+                toast.success('System parameters saved successfully!');
+              }}
+              className="btn-nd btn-nd-primary text-xs px-6"
+            >
+              <Save size={14} /> Save System Parameters
+            </button>
           </div>
         </div>
       </NordicCard>
