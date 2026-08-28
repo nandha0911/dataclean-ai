@@ -34,7 +34,7 @@ export default function TopBar() {
   const checkHealth = async () => {
     try {
       const baseUrl = getBaseUrl().replace(/\/api$/, '');
-      const res = await axios.get(`${baseUrl}/health`, { timeout: 4000 });
+      const res = await axios.get(`${baseUrl}/health`, { timeout: 12000 });
       if (res.data?.status === 'healthy' || res.status === 200) {
         setBackendStatus('healthy');
       } else {

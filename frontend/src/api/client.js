@@ -15,10 +15,10 @@ export const autoDiscoverBackend = async () => {
 
   const candidates = [
     typeof window !== 'undefined' ? localStorage.getItem('DATACLEAN_API_URL') : null,
-    typeof window !== 'undefined' && !window.location.hostname.includes('netlify.app') && !window.location.hostname.includes('localhost') ? window.location.origin : null,
-    import.meta.env.VITE_API_URL,
-    'https://dataclean-ai-backend.onrender.com',
     'https://dataclean-ai-production.up.railway.app',
+    import.meta.env.VITE_API_URL,
+    typeof window !== 'undefined' && !window.location.hostname.includes('netlify.app') && !window.location.hostname.includes('localhost') ? window.location.origin : null,
+    'https://dataclean-ai-backend.onrender.com',
     'https://nandha2425-dataclean-ai-backend.hf.space',
     'http://localhost:8000',
     'http://127.0.0.1:8000',
@@ -26,7 +26,7 @@ export const autoDiscoverBackend = async () => {
 
   const probe = async (target) => {
     try {
-      const res = await axios.get(`${target}/health`, { timeout: 3500 });
+      const res = await axios.get(`${target}/health`, { timeout: 12000 });
       if (res.status === 200 && (res.data?.status === 'healthy' || res.data?.app)) {
         return target;
       }
@@ -47,7 +47,7 @@ export const autoDiscoverBackend = async () => {
     }
   }
 
-  return candidates[0] || (import.meta.env.PROD ? 'https://dataclean-ai-production.up.railway.app' : 'http://localhost:8000');
+  return candidates[0] || 'https://dataclean-ai-production.up.railway.app';
 };
 
 // Initiate auto-discovery immediately on client startup
