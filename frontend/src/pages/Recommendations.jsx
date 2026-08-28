@@ -245,13 +245,46 @@ export default function Recommendations() {
       return;
     }
     setApplyingAll(true);
+
+    // Same safety block as CleaningDashboard — never auto-apply destructive/irreversible ops
+    const DESTRUCTIVE_OPS = new Set([
+      'robust_scaling', 'standard_scaling', 'minmax_scaling', 'max_abs_scaling',
+      'log_transformation', 'log_transform', 'log',
+      'power_transformation', 'power_transform',
+      'sqrt_transformation', 'sqrt_transform', 'sqrt',
+      'quantile_transformation', 'quantile_transform',
+      'label_encoding', 'label_encode',
+      'one_hot_encoding', 'onehot', 'one_hot',
+      'ordinal_encoding', 'ordinal_encode',
+      'binary_encoding', 'binary_encode',
+      'frequency_encoding', 'freq_encode',
+      'target_encoding', 'target_encode',
+      'smote', 'smote_oversample',
+      'random_oversample', 'random_undersample',
+      'binning', 'discretize',
+      'pseudonymize', 'pseudonymization', 'remove_pii', 'mask_data',
+      'delete_column', 'drop_column', 'delete_col',
+      'delete_column_(id_column)', 'delete_column_id_column', 'delete_id_column',
+      'fuzzy_deduplication', 'fuzzy_dedup', 'fuzzy_duplicate_detection',
+    ]);
+
     const pending = actionableRecs.filter(r => {
       const key = `${r.column}-${r.technique}`;
-      return !applied.has(key);
+      const tech = (r.technique || '').toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
+      return !applied.has(key) && !DESTRUCTIVE_OPS.has(tech);
+    });
+
+    const blocked = actionableRecs.filter(r => {
+      const tech = (r.technique || '').toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
+      return DESTRUCTIVE_OPS.has(tech);
     });
 
     if (pending.length === 0) {
-      toast.success('All actionable fixes are already applied!');
+      if (blocked.length > 0) {
+        toast(`${blocked.length} remaining fix(es) require manual review (e.g. Pseudonymization, Delete Column). Apply them individually if needed.`, { icon: 'ℹ️', duration: 5000 });
+      } else {
+        toast.success('All actionable fixes are already applied!');
+      }
       setApplyingAll(false);
       return;
     }
@@ -279,7 +312,11 @@ export default function Recommendations() {
       const newApplied = new Set(applied);
       pending.forEach(r => newApplied.add(`${r.column}-${r.technique}`));
       setApplied(newApplied);
-      toast.success(`✅ Applied ${pending.length} fixes successfully!`);
+      if (blocked.length > 0) {
+        toast.success(`✅ Applied ${pending.length} safe fixes. Skipped ${blocked.length} that need manual review (Pseudonymization, Delete Column, etc.)`, { duration: 6000 });
+      } else {
+        toast.success(`✅ Applied ${pending.length} fixes successfully!`);
+      }
     } catch (err) {
       toast.error(err?.response?.data?.detail || err?.message || 'Some fixes could not be applied.');
     } finally {
@@ -366,8 +403,25 @@ export default function Recommendations() {
     );
   }
 
+  const SAFE_PENDING_OPS = new Set([
+    'robust_scaling', 'standard_scaling', 'minmax_scaling', 'max_abs_scaling',
+    'log_transformation', 'log_transform', 'log', 'power_transformation', 'power_transform',
+    'sqrt_transformation', 'sqrt_transform', 'sqrt', 'quantile_transformation', 'quantile_transform',
+    'label_encoding', 'label_encode', 'one_hot_encoding', 'onehot', 'one_hot',
+    'ordinal_encoding', 'ordinal_encode', 'binary_encoding', 'binary_encode',
+    'frequency_encoding', 'freq_encode', 'target_encoding', 'target_encode',
+    'smote', 'smote_oversample', 'random_oversample', 'random_undersample', 'binning', 'discretize',
+    'pseudonymize', 'pseudonymization', 'remove_pii', 'mask_data',
+    'delete_column', 'drop_column', 'delete_col',
+    'delete_column_(id_column)', 'delete_column_id_column', 'delete_id_column',
+    'fuzzy_deduplication', 'fuzzy_dedup', 'fuzzy_duplicate_detection',
+  ]);
+
   const actionablePendingCount = useMemo(() => {
-    return actionableRecs.filter(r => !applied.has(`${r.column}-${r.technique}`)).length;
+    return actionableRecs.filter(r => {
+      const tech = (r.technique || '').toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
+      return !applied.has(`${r.column}-${r.technique}`) && !SAFE_PENDING_OPS.has(tech);
+    }).length;
   }, [actionableRecs, applied]);
 
   return (
