@@ -366,7 +366,7 @@ function TechniquePicker({ value, onChange }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function CleaningDashboard() {
-  const { currentDataset, analysisResult, recommendations, setRecommendations, setDataset } = useAppStore();
+  const { currentDataset, analysisResult, recommendations, setRecommendations, setDataset, appliedPipeline, setAppliedPipeline, clearAppliedPipeline } = useAppStore();
   const cols = analysisResult?.columns?.map(c => c.column_name) || [];
 
   const [pipeline, setPipeline]         = useState([]);
@@ -457,10 +457,12 @@ export default function CleaningDashboard() {
     if (!currentDataset?.id) return toast.error('No dataset loaded');
     if (!pipeline.length) return toast.error('Pipeline is empty');
     setLoading(true);
-    const ops = pipeline.map(p => ({ column: p.column, operation: p.technique, params: {} }));
+    const newOps = pipeline.map(p => ({ column: p.column, operation: p.technique, params: {} }));
+    const combinedOps = [...(appliedPipeline || []), ...newOps];
     try {
-      const res = await cleanDataset(currentDataset.id, { operations: ops });
+      const res = await cleanDataset(currentDataset.id, { operations: combinedOps });
       setDataset({ ...currentDataset, rows: res.data.cleaned_rows ?? currentDataset.rows, cleanedPreview: res.data.preview, delta: res.data.delta, isCleaned: true });
+      setAppliedPipeline(combinedOps);
       toast.success(res.data.message || 'Pipeline executed successfully!');
       setPipeline([]);
     } catch (err) {

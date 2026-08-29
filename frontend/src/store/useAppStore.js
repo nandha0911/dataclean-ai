@@ -4,6 +4,7 @@ const useAppStore = create((set) => ({
   currentDataset: null,
   analysisResult: null,
   recommendations: [],
+  appliedPipeline: [],
   cleaningHistory: [],
   qualityScore: 0,
   isLoading: false,
@@ -14,6 +15,9 @@ const useAppStore = create((set) => ({
   setDataset: (dataset) => set({ currentDataset: dataset }),
   setAnalysis: (analysis) => set({ analysisResult: analysis }),
   setRecommendations: (recs) => set({ recommendations: recs }),
+  setAppliedPipeline: (ops) => set({ appliedPipeline: ops }),
+  addAppliedOp: (op) => set((state) => ({ appliedPipeline: [...state.appliedPipeline, op] })),
+  clearAppliedPipeline: () => set({ appliedPipeline: [] }),
   pushCleaningOp: (op) => set((state) => ({ cleaningHistory: [...state.cleaningHistory, op] })),
   undoCleaningOp: () => set((state) => {
     const newHistory = [...state.cleaningHistory];

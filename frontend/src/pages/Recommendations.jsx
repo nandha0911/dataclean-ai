@@ -207,7 +207,7 @@ function RecCard({ rec, index, applied, onApply, applying }) {
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function Recommendations() {
-  const { currentDataset, analysisResult, recommendations, setRecommendations, setDataset } = useAppStore();
+  const { currentDataset, analysisResult, recommendations, setRecommendations, setDataset, appliedPipeline, setAppliedPipeline } = useAppStore();
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(null);
   const [applyingAll, setApplyingAll] = useState(false);
@@ -296,8 +296,10 @@ export default function Recommendations() {
       params: {}
     }));
 
+    const combinedOps = [...(appliedPipeline || []), ...ops];
+
     try {
-      const res = await cleanDataset(currentDataset.id, { operations: ops });
+      const res = await cleanDataset(currentDataset.id, { operations: combinedOps });
       if (res?.data) {
         setDataset({
           ...currentDataset,
@@ -309,6 +311,7 @@ export default function Recommendations() {
           isCleaned: true,
         });
       }
+      setAppliedPipeline(combinedOps);
       const newApplied = new Set(applied);
       pending.forEach(r => newApplied.add(`${r.column}-${r.technique}`));
       setApplied(newApplied);
@@ -330,13 +333,15 @@ export default function Recommendations() {
     setApplying(key);
     try {
       const operation = rec.technique?.toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_') || 'auto';
+      const newOp = {
+        column: rec.column,
+        operation,
+        technique: rec.technique,
+        params: {}
+      };
+      const combinedOps = [...(appliedPipeline || []), newOp];
       const res = await cleanDataset(currentDataset.id, {
-        operations: [{
-          column: rec.column,
-          operation,
-          technique: rec.technique,
-          params: {}
-        }]
+        operations: combinedOps
       });
       if (res?.data) {
         setDataset({
@@ -349,6 +354,7 @@ export default function Recommendations() {
           isCleaned: true,
         });
       }
+      setAppliedPipeline(combinedOps);
       setApplied(prev => new Set([...prev, key]));
       toast.success(`✅ ${rec.technique} applied to "${rec.column}"`);
     } catch (err) {
