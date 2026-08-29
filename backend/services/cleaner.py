@@ -235,9 +235,17 @@ class DataCleaner:
         except: pass
         return df
 
-    def duplicate_removal(self, df: pd.DataFrame):
+    def duplicate_removal(self, df: pd.DataFrame, column: str = None):
         try:
-            df.drop_duplicates(inplace=True)
+            if column and column != 'dataset' and column in df.columns:
+                df.drop_duplicates(subset=[column], keep='first', inplace=True)
+            else:
+                # If dataset has an ID column, remove duplicates based on matching entity features (e.g. Same Name, Age, Email, Salary)
+                non_id_cols = [c for c in df.columns if not any(id_kw in str(c).lower() for id_kw in ['customer_id', 'user_id', 'id', 'uuid', 'index', 'key', 'seq', 'row_id'])]
+                if non_id_cols and len(non_id_cols) >= 2:
+                    df.drop_duplicates(subset=non_id_cols, keep='first', inplace=True)
+                else:
+                    df.drop_duplicates(keep='first', inplace=True)
             df.reset_index(drop=True, inplace=True)
         except: pass
         return df
@@ -773,8 +781,8 @@ class DataCleaner:
                     df_clean = self.power_transformation(df_clean, col, **params)
                 elif action in ["smote", "smote_oversample"]:
                     df_clean = self.smote_oversample(df_clean, col)
-                elif action in ["duplicate_removal", "remove_duplicates", "drop_duplicates"]:
-                    df_clean = self.duplicate_removal(df_clean)
+                elif action in ["duplicate_removal", "duplicate_row_removal", "remove_duplicates", "drop_duplicates", "deduplicate", "deduplication", "remove_duplicate_rows"]:
+                    df_clean = self.duplicate_removal(df_clean, col if col != 'dataset' else None)
                 elif action in ["text_standardization", "standardize_text", "trim_whitespace", "title_case", "clean_text"]:
                     df_clean = self.standardize_text(df_clean, col)
                 elif action in ["gender_standardization", "standardize_gender", "fix_gender", "normalize_gender"]:

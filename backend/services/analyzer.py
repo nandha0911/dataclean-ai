@@ -30,7 +30,14 @@ class DataAnalyzer:
                 pass
 
         try:
-            full_row_duplicates = int(df_eval.duplicated().sum())
+            exact_dups = int(df_eval.duplicated().sum())
+            non_id_cols = [c for c in df_eval.columns if not any(id_kw in str(c).lower() for id_kw in ['customer_id', 'user_id', 'id', 'uuid', 'index', 'key', 'seq', 'row_id'])]
+            if non_id_cols and len(non_id_cols) >= 2:
+                entity_dups = int(df_eval.duplicated(subset=non_id_cols).sum())
+                full_row_duplicates = max(exact_dups, entity_dups)
+            else:
+                full_row_duplicates = exact_dups
+
             if total_rows > 50000:
                 full_row_duplicates = int(full_row_duplicates * (total_rows / 50000))
         except Exception:
