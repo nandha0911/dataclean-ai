@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Brain, RefreshCw, Zap, ChevronDown, ChevronUp,
-  CheckCircle, AlertTriangle, Filter, Search
+  CheckCircle, AlertTriangle, Filter, Search, Sparkles
 } from 'lucide-react';
 import NordicCard from '../components/ui/NordicCard';
 import useAppStore from '../store/useAppStore';
