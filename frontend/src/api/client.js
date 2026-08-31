@@ -63,21 +63,31 @@ if (typeof window !== 'undefined') {
 
 export const getBaseUrl = () => {
   let url = '';
+  const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
   const localOverride = typeof window !== 'undefined' ? localStorage.getItem('DATACLEAN_API_URL') : null;
+  
   if (localOverride && localOverride.trim()) {
-    url = localOverride.trim().replace(/\/+$/, '');
+    // If on localhost, only use override if it is also a local address or explicitly set
+    if (!isLocalHost || localOverride.includes('localhost') || localOverride.includes('127.0.0.1')) {
+      url = localOverride.trim().replace(/\/+$/, '');
+    } else {
+      url = 'http://127.0.0.1:8000';
+    }
+  } else if (isLocalHost) {
+    url = 'http://127.0.0.1:8000';
   } else if (activeBackendUrl) {
     url = activeBackendUrl.replace(/\/+$/, '');
   } else if (import.meta.env.VITE_API_URL) {
     url = import.meta.env.VITE_API_URL.trim().replace(/\/+$/, '');
   } else {
-    url = import.meta.env.PROD ? 'https://dataclean-ai-production.up.railway.app' : 'http://localhost:8000';
+    url = import.meta.env.PROD ? 'https://dataclean-ai-production.up.railway.app' : 'http://127.0.0.1:8000';
   }
 
   if (url && !url.endsWith('/api')) {
     url = `${url}/api`;
   }
-  return url || '/api';
+  return url || 'http://127.0.0.1:8000/api';
 };
 
 const api = axios.create({
