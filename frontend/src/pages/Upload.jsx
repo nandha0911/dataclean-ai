@@ -181,9 +181,7 @@ export default function UploadPage() {
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-sm font-bold text-gray-800">
                     {step === 'uploading'
-                      ? chunkInfo.total > 1
-                        ? `Streaming Chunk ${chunkInfo.current} of ${chunkInfo.total} (10 MB parts)...`
-                        : 'Streaming Dataset to Server...'
+                      ? 'Uploading your file...'
                       : 'File Upload Complete'}
                   </span>
                   <span className="text-xs font-extrabold text-[#7C9082]">
@@ -200,7 +198,7 @@ export default function UploadPage() {
                 {step === 'uploading' && uploadBytes.total > 0 && (
                   <div className="text-[11px] text-gray-400 font-semibold mt-1.5 flex justify-between">
                     <span>{formatBytes(uploadBytes.loaded)} of {formatBytes(uploadBytes.total)}</span>
-                    <span>{chunkInfo.total > 1 ? `Multi-part Resilience (${chunkInfo.total} Chunks)` : 'Direct High-Speed Stream'}</span>
+                    <span>Please wait...</span>
                   </div>
                 )}
               </div>

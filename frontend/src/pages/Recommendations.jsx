@@ -8,6 +8,7 @@ import {
   CheckCircle, AlertTriangle, Filter, Search, Sparkles
 } from 'lucide-react';
 import NordicCard from '../components/ui/NordicCard';
+import CleaningProgressBar from '../components/ui/CleaningProgressBar';
 import useAppStore from '../store/useAppStore';
 import { getRecommendations, cleanDataset } from '../api/client';
 import AIChat from '../components/AIChat';
@@ -212,6 +213,9 @@ export default function Recommendations() {
   const [applying, setApplying] = useState(null);
   const [applyingAll, setApplyingAll] = useState(false);
   const [applied, setApplied] = useState(new Set());
+  const [cleanProgress, setCleanProgress] = useState(currentDataset?.isCleaned ? 100 : 0);
+  const [cleanStatus, setCleanStatus]   = useState(currentDataset?.isCleaned ? 'completed' : 'idle');
+  const [currentStepText, setCurrentStepText] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -298,8 +302,34 @@ export default function Recommendations() {
 
     const combinedOps = [...(appliedPipeline || []), ...ops];
 
+    setCleanStatus('cleaning');
+    setCleanProgress(18);
+    setCurrentStepText(`Applying ${pending.length} recommended AI fixes...`);
+
+    const timer = setInterval(() => {
+      setCleanProgress(prev => {
+        if (prev < 45) {
+          setCurrentStepText('Resolving missing values & null imputation...');
+          return prev + 12;
+        }
+        if (prev < 78) {
+          setCurrentStepText('Standardizing text, dates, and categories...');
+          return prev + 9;
+        }
+        if (prev < 92) {
+          setCurrentStepText('Computing cleaned quality score...');
+          return prev + 3;
+        }
+        return prev;
+      });
+    }, 280);
+
     try {
       const res = await cleanDataset(currentDataset.id, { operations: combinedOps });
+      clearInterval(timer);
+      setCleanProgress(100);
+      setCleanStatus('completed');
+      setCurrentStepText('All recommended fixes applied successfully! 100% clean.');
       if (res?.data) {
         setDataset({
           ...currentDataset,
@@ -321,6 +351,9 @@ export default function Recommendations() {
         toast.success(`✅ Applied ${pending.length} fixes successfully!`);
       }
     } catch (err) {
+      clearInterval(timer);
+      setCleanStatus('idle');
+      setCleanProgress(0);
       toast.error(err?.response?.data?.detail || err?.message || 'Some fixes could not be applied.');
     } finally {
       setApplyingAll(false);

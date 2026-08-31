@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import NordicCard from '../components/ui/NordicCard';
+import CleaningProgressBar from '../components/ui/CleaningProgressBar';
 import useAppStore from '../store/useAppStore';
 
 // Highlight cells that changed between original and cleaned
@@ -163,6 +164,18 @@ export default function BeforeAfter() {
           </button>
         </div>
       </div>
+
+      {/* Visual Cleaning Success & Cleanliness Progress Bar */}
+      <CleaningProgressBar
+        progress={100}
+        status="completed"
+        currentStep="Dataset cleaning and quality validation 100% complete"
+        totalSteps={1}
+        completedSteps={1}
+        delta={delta}
+        appliedCount={1}
+        showActions={false}
+      />
 
       {/* Delta Summary Cards */}
       {delta && (

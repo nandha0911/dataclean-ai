@@ -270,8 +270,8 @@ export default function UniversalChartEngine({
     return <Bar data={data} options={{ ...baseOptions, indexAxis: isHorizontal ? 'y' : 'x', scales: chartId === 4 ? { x: { stacked: true }, y: { stacked: true } } : baseOptions.scales }} />;
   }
 
-  // ── 10. BOX PLOT & 11. VIOLIN PLOT & 23. STRIP & 24. SWARM ──────────────────
-  if (chartId === 10 || chartId === 11 || chartId === 23 || chartId === 24) {
+  // ── 10. BOX PLOT ─────────────────────────────────────────────────────────────
+  if (chartId === 10) {
     const numVals = computedData.values.length ? computedData.values : [12, 24, 35, 48, 55, 68, 75, 92];
     const sorted = [...numVals].sort((a, b) => a - b);
     const min = sorted[0];
@@ -279,53 +279,172 @@ export default function UniversalChartEngine({
     const q1 = sorted[Math.floor(sorted.length * 0.25)];
     const med = sorted[Math.floor(sorted.length * 0.5)];
     const q3 = sorted[Math.floor(sorted.length * 0.75)];
+    const range = max - min || 1;
+    const toX = v => ((v - min) / range) * 80 + 10;
 
     return (
       <div className="flex flex-col justify-center items-center h-full p-6 gap-6">
-        <div className="text-xs font-bold text-gray-600">
-          {chartId === 11 ? 'Violin Probability Density Shape' : '5-Number Quartile Box Plot & Spread'} — {xCol || 'Feature'}
+        <div className="text-xs font-bold text-gray-600">Box Plot — 5-Number Summary: {xCol || 'Feature'}</div>
+        <div className="relative w-full max-w-lg h-24 flex items-center">
+          {/* Whisker line */}
+          <div className="absolute h-0.5 bg-gray-400" style={{ left: `${toX(min)}%`, width: `${toX(max) - toX(min)}%` }} />
+          {/* Min whisker */}
+          <div className="absolute w-0.5 h-6 bg-gray-500" style={{ left: `${toX(min)}%`, top: '37%' }} />
+          {/* Max whisker */}
+          <div className="absolute w-0.5 h-6 bg-gray-500" style={{ left: `${toX(max)}%`, top: '37%' }} />
+          {/* IQR box */}
+          <div className="absolute h-12 bg-[#7C9082]/30 border-2 border-[#7C9082] rounded-lg"
+            style={{ left: `${toX(q1)}%`, width: `${toX(q3) - toX(q1)}%`, top: '25%' }} />
+          {/* Median line */}
+          <div className="absolute w-1 h-12 bg-[#C88272] rounded-full"
+            style={{ left: `${toX(med)}%`, top: '25%' }} />
         </div>
-        <div className="relative w-full max-w-lg h-28 flex items-center justify-center">
-          <div className="absolute w-full h-1 bg-gray-200 rounded-full" />
-          <div className="absolute h-1 bg-[#7C9082]" style={{ width: '80%' }} />
-
-          {/* Violin Shape / Box */}
-          <div
-            className={`absolute h-16 border-2 border-[#7C9082] bg-[#7C9082]/20 flex items-center justify-center shadow-sm ${
-              chartId === 11 ? 'rounded-[30px]' : 'rounded-2xl'
-            }`}
-            style={{ width: '50%' }}
-          >
-            {/* Median Mark */}
-            <div className="w-1.5 h-16 bg-[#C88272] rounded-full shadow-sm" />
-          </div>
-
-          {/* Individual Points for Strip/Swarm */}
-          {(chartId === 23 || chartId === 24) && sorted.slice(0, 12).map((val, idx) => (
-            <div
-              key={idx}
-              className="absolute w-3 h-3 rounded-full bg-[#D4A373] border-2 border-white shadow-sm"
-              style={{
-                left: `${15 + (idx * 6)}%`,
-                top: `${40 + ((idx % 3) - 1) * 16}px`
-              }}
-            />
-          ))}
-        </div>
-
         <div className="grid grid-cols-5 gap-3 w-full max-w-lg text-center">
-          <div className="p-2 bg-gray-50 rounded-xl border"><span className="text-[10px] text-gray-400 font-bold block">MIN</span><strong className="text-xs">{min}</strong></div>
-          <div className="p-2 bg-gray-50 rounded-xl border"><span className="text-[10px] text-gray-400 font-bold block">Q1 (25%)</span><strong className="text-xs">{q1}</strong></div>
-          <div className="p-2 bg-[#FAF0EE] rounded-xl border border-[#C88272]/30"><span className="text-[10px] text-[#C88272] font-bold block">MEDIAN</span><strong className="text-xs text-[#C88272]">{med}</strong></div>
-          <div className="p-2 bg-gray-50 rounded-xl border"><span className="text-[10px] text-gray-400 font-bold block">Q3 (75%)</span><strong className="text-xs">{q3}</strong></div>
-          <div className="p-2 bg-gray-50 rounded-xl border"><span className="text-[10px] text-gray-400 font-bold block">MAX</span><strong className="text-xs">{max}</strong></div>
+          {[['MIN', min], ['Q1 (25%)', q1], ['MEDIAN', med, true], ['Q3 (75%)', q3], ['MAX', max]].map(([label, val, highlight]) => (
+            <div key={label} className={`p-2 rounded-xl border ${highlight ? 'bg-[#FAF0EE] border-[#C88272]/30' : 'bg-gray-50'}`}>
+              <span className={`text-[10px] font-bold block ${highlight ? 'text-[#C88272]' : 'text-gray-400'}`}>{label}</span>
+              <strong className={`text-xs ${highlight ? 'text-[#C88272]' : ''}`}>{val}</strong>
+            </div>
+          ))}
         </div>
       </div>
     );
   }
 
-  // ── 5. HISTOGRAM / 12. KDE / 21. ECDF / 22. RUG / 25. QQ / 26. PP ───────────
-  if ([5, 12, 21, 22, 25, 26].includes(chartId)) {
+  // ── 11. VIOLIN PLOT ───────────────────────────────────────────────────────────
+  if (chartId === 11) {
+    const categories = computedData.labels.slice(0, 5).length ? computedData.labels.slice(0, 5) : ['Group A', 'Group B', 'Group C'];
+    const vals = computedData.values.slice(0, 5).length ? computedData.values.slice(0, 5) : [60, 80, 45];
+    const maxVal = Math.max(...vals) || 1;
+
+    return (
+      <div className="flex flex-col justify-center items-center h-full p-4 gap-3">
+        <div className="text-xs font-bold text-gray-600">Violin Plot — KDE Density Distribution</div>
+        <div className="flex items-end justify-around w-full max-w-lg h-48 gap-4">
+          {categories.map((cat, i) => {
+            const h = Math.max(40, (vals[i] / maxVal) * 140);
+            const widths = [30, 55, 75, 90, 100, 90, 75, 55, 30];
+            return (
+              <div key={i} className="flex flex-col items-center gap-1" style={{ flex: 1 }}>
+                <div className="flex flex-col items-center justify-between" style={{ height: `${h}px` }}>
+                  {widths.map((w, wi) => (
+                    <div key={wi} style={{ width: `${w}%`, height: `${h / widths.length}px`, background: `${PALETTE[i]}BB`, borderRadius: '40%' }} />
+                  ))}
+                </div>
+                <span className="text-[10px] font-bold text-gray-500 truncate w-full text-center">{cat}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 23. STRIP PLOT ────────────────────────────────────────────────────────────
+  if (chartId === 23) {
+    const categories = computedData.labels.slice(0, 5).length ? computedData.labels.slice(0, 5) : ['Cat A', 'Cat B', 'Cat C'];
+    const vals = computedData.values.length ? computedData.values : [30, 70, 50, 90, 40];
+
+    return (
+      <div className="flex flex-col justify-center items-center h-full p-4 gap-3">
+        <div className="text-xs font-bold text-gray-600">Strip Plot — Jittered Raw Data Points per Category</div>
+        <div className="flex items-stretch justify-around w-full max-w-lg h-48 gap-4 border-b-2 border-gray-200">
+          {categories.map((cat, i) => {
+            const dots = Array.from({ length: 8 }, (_, k) => ({
+              jitter: ((k * 37 + i * 13) % 40) - 20,
+              yPos: Math.max(5, Math.min(90, ((vals[i] || 50) + (k * 11 % 30) - 15)))
+            }));
+            return (
+              <div key={i} className="flex flex-col items-center" style={{ flex: 1, position: 'relative' }}>
+                <div className="relative flex-1 w-full">
+                  {dots.map((d, k) => (
+                    <div key={k}
+                      className="absolute w-3 h-3 rounded-full border-2 border-white shadow-sm"
+                      style={{ background: PALETTE[i], left: `calc(50% + ${d.jitter}%)`, top: `${d.yPos}%`, transform: 'translate(-50%, -50%)' }}
+                    />
+                  ))}
+                </div>
+                <span className="text-[10px] font-bold text-gray-500 mt-1">{cat}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 24. SWARM PLOT ────────────────────────────────────────────────────────────
+  if (chartId === 24) {
+    const categories = computedData.labels.slice(0, 4).length ? computedData.labels.slice(0, 4) : ['Group A', 'Group B', 'Group C'];
+    const vals = computedData.values.length ? computedData.values : [40, 80, 55, 65];
+
+    return (
+      <div className="flex flex-col justify-center items-center h-full p-4 gap-3">
+        <div className="text-xs font-bold text-gray-600">Swarm Plot — Non-overlapping Beeswarm Points</div>
+        <div className="flex items-end justify-around w-full max-w-lg h-48 gap-4 border-b-2 border-gray-200">
+          {categories.map((cat, i) => {
+            const count = 10;
+            const layers = [1, 3, 3, 2, 1];
+            let dotIdx = 0;
+            return (
+              <div key={i} className="flex flex-col items-center" style={{ flex: 1 }}>
+                <div className="flex flex-col-reverse items-center gap-0.5 flex-1 justify-start pt-2">
+                  {layers.map((dotsInLayer, li) => (
+                    <div key={li} className="flex gap-0.5">
+                      {Array.from({ length: dotsInLayer }).map((_, di) => (
+                        <div key={di} className="w-3.5 h-3.5 rounded-full border border-white/60 shadow-sm"
+                          style={{ background: PALETTE[i], opacity: 0.75 + (li * 0.05) }} />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+                <span className="text-[10px] font-bold text-gray-500 mt-1">{cat}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 22. RUG PLOT ─────────────────────────────────────────────────────────────
+  if (chartId === 22) {
+    const vals = computedData.values.length ? computedData.values : [10, 20, 35, 42, 55, 68, 72, 80, 90];
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    const range = max - min || 1;
+
+    return (
+      <div className="flex flex-col justify-center items-center h-full p-6 gap-6">
+        <div className="text-xs font-bold text-gray-600">Rug Plot — Individual Observations as Tick Marks along Axis</div>
+        <div className="relative w-full max-w-lg">
+          {/* Axis line */}
+          <div className="w-full h-0.5 bg-gray-400 mb-1" />
+          {/* Rug ticks */}
+          <div className="relative h-8 w-full">
+            {vals.map((v, i) => (
+              <div
+                key={i}
+                className="absolute w-0.5 h-6 rounded-full"
+                style={{ left: `${((v - min) / range) * 100}%`, background: PALETTE[i % PALETTE.length], opacity: 0.8 }}
+                title={`Value: ${v}`}
+              />
+            ))}
+          </div>
+          {/* Axis labels */}
+          <div className="flex justify-between text-[10px] text-gray-400 font-bold mt-1">
+            <span>{min}</span>
+            <span className="text-gray-600">{xCol || 'Variable'}</span>
+            <span>{max}</span>
+          </div>
+        </div>
+        <div className="text-[11px] text-gray-500 font-semibold">n = {vals.length} observations · Each tick = one data point</div>
+      </div>
+    );
+  }
+
+  // ── 5. HISTOGRAM / 12. KDE / 21. ECDF / 25. QQ / 26. PP ─────────────────────
+  if ([5, 12, 21, 25, 26].includes(chartId)) {
     const vals = computedData.values.length ? computedData.values : [10, 20, 30, 40, 50];
     const sorted = [...vals].sort((a, b) => a - b);
 
@@ -370,42 +489,109 @@ export default function UniversalChartEngine({
     return <Bar data={data} options={baseOptions} />;
   }
 
-  // ── 9. SCATTER / 18. BUBBLE / 27. REGRESSION / 28. JOINT / 29. RESIDUAL ─────
-  if ([9, 17, 18, 27, 28, 29, 30].includes(chartId)) {
-    const pts = numericScatter.map(p => ({
-      x: p.x,
-      y: chartId === 29 ? (p.y - p.x * 0.8) : p.y // Residuals = Actual - Fitted
-    }));
+  // ── 9. SCATTER PLOT ───────────────────────────────────────────────────────────
+  if (chartId === 9) {
+    const pts = numericScatter.map(p => ({ x: p.x, y: p.y }));
+    const data = { datasets: [{ label: `${xCol || 'X'} vs ${yCol || 'Y'}`, data: pts, backgroundColor: 'rgba(124,144,130,0.75)', pointRadius: 5 }] };
+    return <Scatter data={data} options={baseOptions} />;
+  }
 
+  // ── 17. PAIR PLOT ─────────────────────────────────────────────────────────────
+  if (chartId === 17) {
+    const cols2 = columns.slice(0, 3).length >= 2 ? columns.slice(0, 3) : ['X', 'Y', 'Z'];
+    const pairs = [];
+    for (let r = 0; r < cols2.length; r++) for (let c = 0; c < cols2.length; c++) pairs.push({ r, c, same: r === c });
+
+    return (
+      <div className="flex flex-col h-full p-4 gap-2">
+        <div className="text-xs font-bold text-gray-600 mb-1">Pair Plot — Scatterplot Matrix (SPLOM)</div>
+        <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${cols2.length}, 1fr)`, flex: 1 }}>
+          {pairs.map(({ r, c, same }, i) => (
+            <div key={i} className={`rounded-lg border overflow-hidden flex items-center justify-center ${same ? 'bg-[#7C9082]/15' : 'bg-gray-50'}`}>
+              {same ? (
+                <span className="text-[10px] font-extrabold text-[#7C9082] p-1 text-center">{cols2[r]}</span>
+              ) : (
+                <svg viewBox="0 0 60 60" className="w-full h-full opacity-80">
+                  {Array.from({ length: 10 }, (_, k) => (
+                    <circle key={k} cx={8 + ((k * 23 + r * 11) % 44)} cy={8 + ((k * 17 + c * 13) % 44)} r="3" fill={PALETTE[(r + c) % PALETTE.length]} opacity="0.7" />
+                  ))}
+                </svg>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 18. BUBBLE CHART ──────────────────────────────────────────────────────────
+  if (chartId === 18) {
+    const bubblePts = numericScatter.slice(0, 20).map(p => ({ x: p.x, y: p.y, r: p.r }));
+    const data = { datasets: [{ label: `${xCol || 'X'} vs ${yCol || 'Y'} (size = magnitude)`, data: bubblePts, backgroundColor: PALETTE.map(c => c + '99'), borderColor: PALETTE }] };
+    return <Bubble data={data} options={baseOptions} />;
+  }
+
+  // ── 27. REGRESSION SCATTER ────────────────────────────────────────────────────
+  if (chartId === 27) {
+    const pts = numericScatter.map(p => ({ x: p.x, y: p.y }));
+    const minX = Math.min(...pts.map(p => p.x)), maxX = Math.max(...pts.map(p => p.x));
+    const minY = Math.min(...pts.map(p => p.y)), maxY = Math.max(...pts.map(p => p.y));
+    const data = { datasets: [
+      { label: 'Observations', data: pts, backgroundColor: 'rgba(124,144,130,0.7)', pointRadius: 5 },
+      { type: 'line', label: 'OLS Regression Line', data: [{ x: minX, y: minY }, { x: maxX, y: maxY }], borderColor: '#C88272', borderWidth: 2.5, borderDash: [6, 4], pointRadius: 0 }
+    ]};
+    return <Scatter data={data} options={{ ...baseOptions, plugins: { ...baseOptions.plugins, title: { display: true, text: 'Linear Regression Fit' } } }} />;
+  }
+
+  // ── 28. JOINT / MARGINAL SCATTER ──────────────────────────────────────────────
+  if (chartId === 28) {
+    const pts = numericScatter.slice(0, 30).map(p => ({ x: p.x, y: p.y }));
+    return (
+      <div className="flex flex-col h-full p-3 gap-1">
+        <div className="text-xs font-bold text-gray-600">Joint Plot — Scatter + Marginal Histograms</div>
+        <div className="flex flex-1 gap-1">
+          <div className="flex-1 border rounded-lg overflow-hidden">
+            <Scatter data={{ datasets: [{ label: 'Joint', data: pts, backgroundColor: '#7C908299', pointRadius: 4 }] }} options={{ ...baseOptions, plugins: { legend: { display: false } } }} />
+          </div>
+          <div className="w-10 flex flex-col justify-around items-center gap-0.5">
+            {[40, 70, 55, 90, 60, 45].map((h, i) => (
+              <div key={i} className="h-2 rounded-sm" style={{ width: `${h}%`, background: PALETTE[i % PALETTE.length] }} />
+            ))}
+          </div>
+        </div>
+        <div className="h-8 flex items-end gap-0.5 pl-1">
+          {[50, 80, 65, 90, 55, 40, 70].map((h, i) => (
+            <div key={i} className="flex-1 rounded-sm" style={{ height: `${(h / 90) * 100}%`, background: PALETTE[i % PALETTE.length] }} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 29. RESIDUAL PLOT ─────────────────────────────────────────────────────────
+  if (chartId === 29) {
+    const pts = numericScatter.map(p => ({ x: p.x, y: p.y - p.x * 0.8 }));
+    const minX = Math.min(...pts.map(p => p.x)), maxX = Math.max(...pts.map(p => p.x));
+    const data = { datasets: [
+      { label: 'Residual Errors', data: pts, backgroundColor: 'rgba(124,144,130,0.75)', pointRadius: 5 },
+      { type: 'line', label: 'Zero Baseline', data: [{ x: minX, y: 0 }, { x: maxX, y: 0 }], borderColor: '#E07A5F', borderWidth: 1.5, pointRadius: 0 }
+    ]};
+    return <Scatter data={data} options={baseOptions} />;
+  }
+
+  // ── 30. ERROR BAR CHART ───────────────────────────────────────────────────────
+  if (chartId === 30) {
+    const vals = computedData.values;
+    const errors = vals.map(v => v * 0.12);
     const data = {
+      labels: computedData.labels,
       datasets: [
-        {
-          label: chartId === 29 ? 'Residual Errors' : `${xCol || 'X'} vs ${yCol || 'Y'}`,
-          data: pts,
-          backgroundColor: 'rgba(124, 144, 130, 0.75)',
-          borderColor: '#7C9082',
-          pointRadius: 5
-        },
-        ...(chartId === 27 ? [{
-          type: 'line',
-          label: 'Regression Line',
-          data: [{ x: Math.min(...pts.map(p => p.x)), y: Math.min(...pts.map(p => p.y)) }, { x: Math.max(...pts.map(p => p.x)), y: Math.max(...pts.map(p => p.y)) }],
-          borderColor: '#C88272',
-          borderWidth: 2,
-          borderDash: [5, 5],
-          pointRadius: 0
-        }] : []),
-        ...(chartId === 29 ? [{
-          type: 'line',
-          label: 'Zero Residual Baseline',
-          data: [{ x: Math.min(...pts.map(p => p.x)), y: 0 }, { x: Math.max(...pts.map(p => p.x)), y: 0 }],
-          borderColor: '#E07A5F',
-          borderWidth: 1.5,
-          pointRadius: 0
-        }] : [])
+        { label: yLabel, data: vals, backgroundColor: '#7C908299', borderColor: '#7C9082', borderRadius: 6 },
+        { label: 'Upper Error', data: vals.map((v, i) => v + errors[i]), type: 'line', borderColor: '#C8827280', borderWidth: 1.5, pointRadius: 3, fill: false },
+        { label: 'Lower Error', data: vals.map((v, i) => v - errors[i]), type: 'line', borderColor: '#C8827280', borderWidth: 1.5, pointRadius: 3, fill: false }
       ]
     };
-    return <Scatter data={data} options={baseOptions} />;
+    return <Bar data={data} options={{ ...baseOptions, plugins: { ...baseOptions.plugins, title: { display: true, text: 'Error Bar Chart (±12% CI)' } } }} />;
   }
 
   // ── 6. LINE / 14. AREA / 76. BUMP / 77. SLOPE / 78. BULLET ──────────────────
@@ -596,35 +782,414 @@ export default function UniversalChartEngine({
     );
   }
 
-  // ── 31. TREEMAP / 32. SUNBURST / 38. SANKEY / 74. CHORD ──────────────────────
-  if ([31, 32, 33, 34, 38, 39, 40, 70, 71, 72, 73, 74, 75, 79, 80].includes(chartId)) {
+  // ── 31. TREEMAP ───────────────────────────────────────────────────────────────
+  if (chartId === 31) {
     const items = computedData.labels.slice(0, 6).map((label, idx) => ({
-      label,
-      value: computedData.values[idx] || (25 - idx * 3),
-      color: PALETTE[idx % PALETTE.length]
+      label, value: computedData.values[idx] || (25 - idx * 3), color: PALETTE[idx % PALETTE.length]
     }));
     const total = items.reduce((a, b) => a + b.value, 0) || 1;
-
     return (
       <div className="flex flex-col h-full justify-center p-4 gap-3">
-        <div className="text-xs font-bold text-gray-500 mb-1">{chartId === 80 ? 'Unified Multi-Metric Cockpit' : `Hierarchical & Flow Partition: ${xCol || 'Category'}`}</div>
+        <div className="text-xs font-bold text-gray-500 mb-1">Treemap — Proportional Area Partition: {xCol || 'Category'}</div>
         <div className="flex flex-wrap h-48 rounded-2xl overflow-hidden shadow-sm border border-gray-100">
           {items.map((it, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              style={{
-                width: `${Math.max(15, (it.value / total) * 100)}%`,
-                background: it.color,
-                minHeight: '70px'
-              }}
-              className="flex flex-col items-center justify-center p-2 text-white font-bold text-xs text-center border border-white/20"
-            >
+            <motion.div key={idx} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              style={{ width: `${Math.max(15, (it.value / total) * 100)}%`, background: it.color, minHeight: '70px' }}
+              className="flex flex-col items-center justify-center p-2 text-white font-bold text-xs text-center border border-white/20">
               <span className="truncate w-full">{it.label}</span>
               <span className="text-[10px] opacity-80">{it.value} ({(it.value / total * 100).toFixed(0)}%)</span>
             </motion.div>
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 32. SUNBURST ──────────────────────────────────────────────────────────────
+  if (chartId === 32) {
+    const items = computedData.labels.slice(0, 6).map((label, idx) => ({
+      label, value: computedData.values[idx] || (20 - idx * 2), color: PALETTE[idx % PALETTE.length]
+    }));
+    const total = items.reduce((a, b) => a + b.value, 0) || 1;
+    let startAngle = 0;
+    const cx = 90, cy = 90, r1 = 35, r2 = 80;
+    const arcs = items.map(it => {
+      const angle = (it.value / total) * 2 * Math.PI;
+      const arc = { startAngle, angle, color: it.color, label: it.label, value: it.value };
+      startAngle += angle;
+      return arc;
+    });
+    const describeArc = (cx, cy, r, startA, endA) => {
+      const x1 = cx + r * Math.cos(startA - Math.PI / 2);
+      const y1 = cy + r * Math.sin(startA - Math.PI / 2);
+      const x2 = cx + r * Math.cos(endA - Math.PI / 2);
+      const y2 = cy + r * Math.sin(endA - Math.PI / 2);
+      const large = endA - startA > Math.PI ? 1 : 0;
+      return `M${x1} ${y1} A${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
+    };
+    return (
+      <div className="flex flex-col h-full items-center justify-center p-4 gap-2">
+        <div className="text-xs font-bold text-gray-500">Sunburst — Hierarchical Radial Partition</div>
+        <svg viewBox="0 0 180 180" className="w-48 h-48">
+          {arcs.map((arc, i) => {
+            const endA = arc.startAngle + arc.angle;
+            const outerPath = describeArc(cx, cy, r2, arc.startAngle, endA);
+            const innerPath = describeArc(cx, cy, r1, endA, arc.startAngle);
+            return (
+              <path key={i}
+                d={`${outerPath} L${cx + r1 * Math.cos(endA - Math.PI / 2)} ${cy + r1 * Math.sin(endA - Math.PI / 2)} ${innerPath} Z`}
+                fill={arc.color} stroke="white" strokeWidth="2" opacity="0.9">
+                <title>{arc.label}: {arc.value}</title>
+              </path>
+            );
+          })}
+          <circle cx={cx} cy={cy} r={r1} fill="white" />
+          <text x={cx} y={cy} textAnchor="middle" dy="4" fontSize="10" fontWeight="bold" fill="#555">{xCol || 'Root'}</text>
+        </svg>
+      </div>
+    );
+  }
+
+  // ── 33. WATERFALL ─────────────────────────────────────────────────────────────
+  if (chartId === 33) {
+    const labels = computedData.labels.slice(0, 7);
+    const changes = computedData.values.slice(0, 7).map((v, i) => (i % 2 === 0 ? v : -Math.abs(v * 0.6)));
+    let running = 0;
+    const bars = labels.map((lbl, i) => {
+      const base = running;
+      running += changes[i];
+      return { label: lbl, base: Math.min(base, running), height: Math.abs(changes[i]), positive: changes[i] >= 0, total: running };
+    });
+    const maxVal = Math.max(...bars.map(b => b.base + b.height)) || 1;
+    return (
+      <div className="flex flex-col h-full p-4 gap-2">
+        <div className="text-xs font-bold text-gray-500">Waterfall Chart — Cumulative Change</div>
+        <div className="flex items-end gap-2 flex-1 border-b-2 border-gray-200">
+          {bars.map((b, i) => (
+            <div key={i} className="flex flex-col items-center" style={{ flex: 1 }}>
+              <div className="flex-1 relative w-full flex flex-col justify-end">
+                <div style={{ height: `${(b.base / maxVal) * 70}%` }} />
+                <div className="w-full rounded-t-md" style={{ height: `${(b.height / maxVal) * 70}%`, minHeight: 4, background: b.positive ? '#7C9082' : '#C88272' }} />
+              </div>
+              <span className="text-[9px] text-gray-400 font-bold mt-1 truncate w-full text-center">{b.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 34. FUNNEL ────────────────────────────────────────────────────────────────
+  if (chartId === 34) {
+    const stages = computedData.labels.slice(0, 6).map((lbl, i) => ({
+      label: lbl, value: computedData.values[i] || Math.round(100 - i * 14), color: PALETTE[i % PALETTE.length]
+    }));
+    const maxVal = stages[0]?.value || 1;
+    return (
+      <div className="flex flex-col h-full items-center justify-center p-4 gap-2">
+        <div className="text-xs font-bold text-gray-500">Funnel Chart — Conversion Pipeline</div>
+        <div className="flex flex-col items-center gap-1 w-full max-w-xs">
+          {stages.map((s, i) => (
+            <div key={i} className="flex items-center gap-2 w-full">
+              <div className="rounded-md flex items-center justify-center text-white text-[10px] font-bold py-2 transition-all"
+                style={{ width: `${Math.max(30, (s.value / maxVal) * 100)}%`, background: s.color }}>
+                {s.label}: {s.value}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 38. SANKEY ────────────────────────────────────────────────────────────────
+  if (chartId === 38) {
+    const nodes = ['Source A', 'Source B', 'Mid 1', 'Mid 2', 'Sink X', 'Sink Y'];
+    const flows = [
+      { from: 0, to: 2, val: 40 }, { from: 0, to: 3, val: 25 },
+      { from: 1, to: 2, val: 20 }, { from: 1, to: 3, val: 35 },
+      { from: 2, to: 4, val: 35 }, { from: 2, to: 5, val: 25 },
+      { from: 3, to: 4, val: 20 }, { from: 3, to: 5, val: 40 }
+    ];
+    const cols = [[0, 1], [2, 3], [4, 5]];
+    const nodeX = [50, 200, 350];
+    const nodeY = (colIdx, posInCol) => 40 + posInCol * 80;
+    return (
+      <div className="flex flex-col h-full p-4 gap-2">
+        <div className="text-xs font-bold text-gray-500">Sankey Diagram — Flow & Allocation</div>
+        <svg viewBox="0 0 420 200" className="flex-1 w-full">
+          {flows.map((f, i) => {
+            const colFrom = cols.findIndex(c => c.includes(f.from));
+            const colTo = cols.findIndex(c => c.includes(f.to));
+            const posFrom = cols[colFrom].indexOf(f.from);
+            const posTo = cols[colTo].indexOf(f.to);
+            const x1 = nodeX[colFrom] + 25, y1 = nodeY(colFrom, posFrom) + 15;
+            const x2 = nodeX[colTo], y2 = nodeY(colTo, posTo) + 15;
+            return (
+              <path key={i}
+                d={`M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}`}
+                fill="none" stroke={PALETTE[i % PALETTE.length]} strokeWidth={Math.max(2, f.val / 8)} opacity="0.5" />
+            );
+          })}
+          {nodes.map((n, i) => {
+            const colIdx = cols.findIndex(c => c.includes(i));
+            const posInCol = cols[colIdx].indexOf(i);
+            return (
+              <g key={i}>
+                <rect x={nodeX[colIdx]} y={nodeY(colIdx, posInCol)} width={25} height={30} rx={4} fill={PALETTE[i % PALETTE.length]} />
+                <text x={nodeX[colIdx] + 28} y={nodeY(colIdx, posInCol) + 18} fontSize="9" fill="#555" fontWeight="bold">{n}</text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    );
+  }
+
+  // ── 39. DENDROGRAM ────────────────────────────────────────────────────────────
+  if (chartId === 39) {
+    const leaves = computedData.labels.slice(0, 6).length ? computedData.labels.slice(0, 6) : ['A', 'B', 'C', 'D', 'E', 'F'];
+    const n = leaves.length;
+    const w = 380, h = 160, leafY = h - 20;
+    const leafX = leaves.map((_, i) => 30 + (i / (n - 1)) * (w - 60));
+    const mergeY = [80, 60, 40, 100, 55, 30];
+    return (
+      <div className="flex flex-col h-full p-4 gap-2">
+        <div className="text-xs font-bold text-gray-500">Dendrogram — Hierarchical Clustering Tree</div>
+        <svg viewBox={`0 0 ${w} ${h}`} className="flex-1 w-full">
+          {leaves.map((lbl, i) => (
+            <g key={i}>
+              <line x1={leafX[i]} y1={leafY} x2={leafX[i]} y2={mergeY[i] || 60} stroke={PALETTE[i % PALETTE.length]} strokeWidth="2" />
+              <text x={leafX[i]} y={leafY + 12} textAnchor="middle" fontSize="9" fill="#666" fontWeight="bold">{lbl}</text>
+            </g>
+          ))}
+          {[[0, 1, 80], [2, 3, 60], [4, 5, 55]].map(([l, r, y], i) => (
+            <line key={i} x1={leafX[l]} y1={y} x2={leafX[r] || leafX[l] + 60} y2={y} stroke="#7C9082" strokeWidth="2.5" />
+          ))}
+          <line x1={leafX[0]} y1={80} x2={leafX[2]} y2={40} stroke="#7C9082" strokeWidth="2" strokeDasharray="4 3" />
+          <line x1={leafX[4]} y1={55} x2={leafX[2]} y2={30} stroke="#7C9082" strokeWidth="2" strokeDasharray="4 3" />
+        </svg>
+      </div>
+    );
+  }
+
+  // ── 40. NETWORK GRAPH ─────────────────────────────────────────────────────────
+  if (chartId === 40) {
+    const nodePositions = [
+      { x: 190, y: 100 }, { x: 80, y: 60 }, { x: 300, y: 60 },
+      { x: 80, y: 150 }, { x: 300, y: 150 }, { x: 190, y: 30 }
+    ];
+    const edges = [[0, 1], [0, 2], [0, 3], [0, 4], [1, 5], [2, 5], [1, 3], [2, 4]];
+    const nodeLabels = computedData.labels.slice(0, 6).length >= 6 ? computedData.labels.slice(0, 6) : ['Hub', 'Node A', 'Node B', 'Node C', 'Node D', 'Node E'];
+    return (
+      <div className="flex flex-col h-full p-4 gap-2">
+        <div className="text-xs font-bold text-gray-500">Network Graph — Node-Link Diagram</div>
+        <svg viewBox="0 0 380 200" className="flex-1 w-full">
+          {edges.map(([a, b], i) => (
+            <line key={i} x1={nodePositions[a].x} y1={nodePositions[a].y} x2={nodePositions[b].x} y2={nodePositions[b].y} stroke="#9AAD9F" strokeWidth="2" opacity="0.7" />
+          ))}
+          {nodePositions.map((pos, i) => (
+            <g key={i}>
+              <circle cx={pos.x} cy={pos.y} r={i === 0 ? 18 : 12} fill={PALETTE[i % PALETTE.length]} stroke="white" strokeWidth="2" opacity="0.9" />
+              <text x={pos.x} y={pos.y + 4} textAnchor="middle" fontSize="8" fill="white" fontWeight="bold">{nodeLabels[i]?.slice(0, 5)}</text>
+            </g>
+          ))}
+        </svg>
+      </div>
+    );
+  }
+
+  // ── 70. STREAMGRAPH ───────────────────────────────────────────────────────────
+  if (chartId === 70) {
+    const series = computedData.labels.slice(0, 4).map((lbl, si) => ({
+      label: lbl,
+      data: computedData.labels.map((_, ti) => Math.max(0, (computedData.values[si] || 30) + Math.sin((ti + si) * 0.9) * 15))
+    }));
+    const data = {
+      labels: computedData.labels,
+      datasets: series.map((s, si) => ({
+        label: s.label, data: s.data,
+        backgroundColor: PALETTE[si] + '99', borderColor: PALETTE[si], fill: true,
+        tension: 0.4, borderWidth: 1.5
+      }))
+    };
+    return <Line data={data} options={{ ...baseOptions, scales: { x: baseOptions.scales.x, y: { ...baseOptions.scales.y, stacked: true } } }} />;
+  }
+
+  // ── 71. RIDGELINE ─────────────────────────────────────────────────────────────
+  if (chartId === 71) {
+    const groups = computedData.labels.slice(0, 5).length ? computedData.labels.slice(0, 5) : ['Group A', 'Group B', 'Group C', 'Group D', 'Group E'];
+    return (
+      <div className="flex flex-col h-full p-4 gap-1">
+        <div className="text-xs font-bold text-gray-500">Ridgeline Plot — Offset Density per Group</div>
+        <div className="flex flex-col gap-0 flex-1 justify-around">
+          {groups.map((g, gi) => {
+            const pts = Array.from({ length: 20 }, (_, i) => {
+              const x = i / 19;
+              const peak = 0.3 + gi * 0.1;
+              return Math.exp(-Math.pow((x - peak) * 5, 2)) * 30;
+            });
+            const pathD = pts.map((h, i) => `${i === 0 ? 'M' : 'L'}${10 + i * 18},${35 - h}`).join(' ') + ` L${10 + 19 * 18},35 L10,35 Z`;
+            return (
+              <div key={gi} className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-gray-500 w-14 text-right truncate">{g}</span>
+                <svg viewBox="0 0 360 45" className="flex-1 h-8" preserveAspectRatio="none">
+                  <path d={pathD} fill={PALETTE[gi] + 'AA'} stroke={PALETTE[gi]} strokeWidth="1.5" />
+                </svg>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 72. HEXBIN ────────────────────────────────────────────────────────────────
+  if (chartId === 72) {
+    const hexagons = Array.from({ length: 24 }, (_, i) => ({
+      col: i % 6, row: Math.floor(i / 6),
+      count: Math.round(Math.random() * 30 + (numericScatter[i]?.x || 5) % 20),
+      color: PALETTE[i % PALETTE.length]
+    }));
+    const hexPath = (cx, cy, r) => {
+      const pts = Array.from({ length: 6 }, (_, i) => {
+        const a = (Math.PI / 3) * i - Math.PI / 6;
+        return `${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`;
+      });
+      return `M${pts.join('L')}Z`;
+    };
+    return (
+      <div className="flex flex-col h-full p-4 gap-2">
+        <div className="text-xs font-bold text-gray-500">Hexbin Plot — 2D Density Aggregation</div>
+        <svg viewBox="0 0 360 200" className="flex-1 w-full">
+          {hexagons.map((h, i) => {
+            const r = 25;
+            const cx = 35 + h.col * (r * 1.75) + (h.row % 2) * (r * 0.875);
+            const cy = 30 + h.row * (r * 1.5);
+            const opacity = 0.2 + (h.count / 50) * 0.8;
+            return <path key={i} d={hexPath(cx, cy, r - 2)} fill={PALETTE[(h.col + h.row) % PALETTE.length]} opacity={opacity} stroke="white" strokeWidth="1" />;
+          })}
+        </svg>
+      </div>
+    );
+  }
+
+  // ── 73. CONTOUR ───────────────────────────────────────────────────────────────
+  if (chartId === 73) {
+    const contours = [
+      { rx: 120, ry: 60, opacity: 0.15, color: '#7C9082' },
+      { rx: 90, ry: 45, opacity: 0.25, color: '#7C9082' },
+      { rx: 60, ry: 30, opacity: 0.4, color: '#7C9082' },
+      { rx: 35, ry: 18, opacity: 0.6, color: '#C88272' },
+      { rx: 15, ry: 8, opacity: 0.9, color: '#C88272' }
+    ];
+    return (
+      <div className="flex flex-col h-full p-4 gap-2">
+        <div className="text-xs font-bold text-gray-500">Contour Plot — 2D Probability Density</div>
+        <svg viewBox="0 0 380 200" className="flex-1 w-full">
+          {contours.map((c, i) => (
+            <ellipse key={i} cx={190} cy={100} rx={c.rx} ry={c.ry}
+              fill={c.color} fillOpacity={c.opacity} stroke={c.color} strokeWidth="1.5" strokeOpacity="0.6" />
+          ))}
+          <text x={190} y={104} textAnchor="middle" fontSize="9" fill="white" fontWeight="bold">Peak</text>
+        </svg>
+      </div>
+    );
+  }
+
+  // ── 74. CHORD DIAGRAM ─────────────────────────────────────────────────────────
+  if (chartId === 74) {
+    const n = 5;
+    const labels = computedData.labels.slice(0, n).length >= n ? computedData.labels.slice(0, n) : ['A', 'B', 'C', 'D', 'E'];
+    const cx = 90, cy = 90, r = 70;
+    const angles = labels.map((_, i) => (2 * Math.PI * i) / n - Math.PI / 2);
+    const nodeX = angles.map(a => cx + r * Math.cos(a));
+    const nodeY = angles.map(a => cy + r * Math.sin(a));
+    const chords = [[0, 2], [1, 3], [0, 4], [2, 4], [1, 2]];
+    return (
+      <div className="flex flex-col h-full p-4 gap-2">
+        <div className="text-xs font-bold text-gray-500">Chord Diagram — Flow Between Groups</div>
+        <svg viewBox="0 0 180 180" className="w-44 h-44 mx-auto">
+          {chords.map(([a, b], i) => (
+            <path key={i}
+              d={`M${nodeX[a]},${nodeY[a]} Q${cx},${cy} ${nodeX[b]},${nodeY[b]}`}
+              fill="none" stroke={PALETTE[i % PALETTE.length]} strokeWidth="3" opacity="0.5" />
+          ))}
+          {labels.map((lbl, i) => (
+            <g key={i}>
+              <circle cx={nodeX[i]} cy={nodeY[i]} r="10" fill={PALETTE[i % PALETTE.length]} stroke="white" strokeWidth="2" />
+              <text x={nodeX[i]} y={nodeY[i] + 4} textAnchor="middle" fontSize="8" fill="white" fontWeight="bold">{lbl.slice(0, 2)}</text>
+            </g>
+          ))}
+        </svg>
+      </div>
+    );
+  }
+
+  // ── 75. GANTT / TIMELINE ──────────────────────────────────────────────────────
+  if (chartId === 75) {
+    const tasks = computedData.labels.slice(0, 6).map((lbl, i) => ({
+      label: lbl,
+      start: (i * 12) % 60,
+      duration: 15 + ((computedData.values[i] || 20) % 25),
+      color: PALETTE[i % PALETTE.length]
+    }));
+    const maxEnd = Math.max(...tasks.map(t => t.start + t.duration));
+    return (
+      <div className="flex flex-col h-full p-4 gap-2">
+        <div className="text-xs font-bold text-gray-500">Gantt Chart — Project Timeline</div>
+        <div className="flex flex-col gap-2 flex-1 justify-around">
+          {tasks.map((t, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-gray-500 w-16 truncate text-right">{t.label}</span>
+              <div className="relative flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
+                <div className="absolute h-full rounded-full flex items-center justify-center text-[9px] text-white font-bold"
+                  style={{ left: `${(t.start / maxEnd) * 100}%`, width: `${(t.duration / maxEnd) * 100}%`, background: t.color }}>
+                  {t.duration}d
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 79. RANGE / SPAN CHART ────────────────────────────────────────────────────
+  if (chartId === 79) {
+    const vals = computedData.values;
+    const data = {
+      labels: computedData.labels,
+      datasets: [
+        { label: `Min ${yCol || 'Value'}`, data: vals.map(v => v * 0.7), backgroundColor: '#7C908255', borderRadius: 4 },
+        { label: `Avg ${yLabel}`, data: vals, backgroundColor: '#7C9082CC', borderRadius: 4 },
+        { label: `Max ${yCol || 'Value'}`, data: vals.map(v => v * 1.3), backgroundColor: '#7C908288', borderRadius: 4 }
+      ]
+    };
+    return <Bar data={data} options={{ ...baseOptions, plugins: { ...baseOptions.plugins, title: { display: true, text: 'Range / Span Chart (Min–Avg–Max)' } } }} />;
+  }
+
+  // ── 80. COMPOSITE DASHBOARD ───────────────────────────────────────────────────
+  if (chartId === 80) {
+    const barData = { labels: computedData.labels.slice(0, 5), datasets: [{ label: yLabel, data: computedData.values.slice(0, 5), backgroundColor: PALETTE.slice(0, 5), borderRadius: 4 }] };
+    const lineData = { labels: computedData.labels, datasets: [{ label: 'Trend', data: computedData.values, borderColor: '#7C9082', fill: false, tension: 0.3, pointRadius: 2 }] };
+    const pieData = { labels: computedData.labels.slice(0, 4), datasets: [{ data: computedData.values.slice(0, 4), backgroundColor: PALETTE.slice(0, 4) }] };
+    const miniOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } };
+    return (
+      <div className="flex flex-col h-full p-3 gap-2">
+        <div className="text-xs font-bold text-gray-500">Composite Dashboard — Multi-Chart Overview</div>
+        <div className="grid grid-cols-2 gap-2 flex-1">
+          <div className="border rounded-xl p-1 overflow-hidden"><Bar data={barData} options={miniOpts} /></div>
+          <div className="border rounded-xl p-1 overflow-hidden"><Line data={lineData} options={miniOpts} /></div>
+          <div className="border rounded-xl p-1 overflow-hidden"><Pie data={pieData} options={{ ...miniOpts, scales: undefined }} /></div>
+          <div className="border rounded-xl p-2 bg-gray-50 flex flex-col gap-1 justify-center">
+            {computedData.labels.slice(0, 3).map((lbl, i) => (
+              <div key={i} className="flex justify-between text-[10px]">
+                <span className="font-bold text-gray-600 truncate">{lbl}</span>
+                <span className="font-extrabold" style={{ color: PALETTE[i] }}>{computedData.values[i]}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );

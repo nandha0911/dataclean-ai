@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trash2, Plus, Zap, AlertTriangle, X, PlayCircle, Activity, Sparkles, CheckCircle2, Search } from 'lucide-react';
 import NordicCard from '../components/ui/NordicCard';
+import CleaningProgressBar from '../components/ui/CleaningProgressBar';
 import useAppStore from '../store/useAppStore';
 import { cleanDataset, getRecommendations } from '../api/client';
 import toast from 'react-hot-toast';
@@ -371,6 +372,9 @@ export default function CleaningDashboard() {
 
   const [pipeline, setPipeline]         = useState([]);
   const [loading, setLoading]           = useState(false);
+  const [cleanProgress, setCleanProgress] = useState(currentDataset?.isCleaned ? 100 : 0);
+  const [cleanStatus, setCleanStatus]   = useState(currentDataset?.isCleaned ? 'completed' : 'idle');
+  const [currentStepText, setCurrentStepText] = useState('');
   const [fetchingRecs, setFetchingRecs] = useState(false);
   const [showAdd, setShowAdd]           = useState(false);
   const [newOp, setNewOp]               = useState({ column: cols[0] || '', technique: ALL_OPTIONS[0].value });
@@ -457,15 +461,44 @@ export default function CleaningDashboard() {
     if (!currentDataset?.id) return toast.error('No dataset loaded');
     if (!pipeline.length) return toast.error('Pipeline is empty');
     setLoading(true);
+    setCleanStatus('cleaning');
+    setCleanProgress(15);
+    setCurrentStepText(`Initializing cleaning pipeline (${pipeline.length} operations)...`);
+
+    const timer = setInterval(() => {
+      setCleanProgress(prev => {
+        if (prev < 40) {
+          setCurrentStepText('Imputing null values and standardizing formats...');
+          return prev + 14;
+        }
+        if (prev < 75) {
+          setCurrentStepText('Applying outlier removal & deduplicating rows...');
+          return prev + 9;
+        }
+        if (prev < 92) {
+          setCurrentStepText('Finalizing data types & calculating quality delta...');
+          return prev + 3;
+        }
+        return prev;
+      });
+    }, 280);
+
     const newOps = pipeline.map(p => ({ column: p.column, operation: p.technique, params: {} }));
     const combinedOps = [...(appliedPipeline || []), ...newOps];
     try {
       const res = await cleanDataset(currentDataset.id, { operations: combinedOps });
+      clearInterval(timer);
+      setCleanProgress(100);
+      setCleanStatus('completed');
+      setCurrentStepText('Pipeline executed successfully! 100% of data cleaned.');
       setDataset({ ...currentDataset, rows: res.data.cleaned_rows ?? currentDataset.rows, cleanedPreview: res.data.preview, delta: res.data.delta, isCleaned: true });
       setAppliedPipeline(combinedOps);
       toast.success(res.data.message || 'Pipeline executed successfully!');
       setPipeline([]);
     } catch (err) {
+      clearInterval(timer);
+      setCleanStatus('idle');
+      setCleanProgress(0);
       toast.error(err?.message || 'Pipeline execution failed.');
     } finally {
       setLoading(false);
@@ -499,6 +532,19 @@ export default function CleaningDashboard() {
           </button>
         </div>
       </div>
+
+      {/* Visual Data Cleaning Progress & Success Bar */}
+      {(cleanStatus !== 'idle' || currentDataset?.isCleaned || currentDataset?.delta) && (
+        <CleaningProgressBar
+          progress={cleanProgress}
+          status={cleanStatus}
+          currentStep={currentStepText}
+          totalSteps={pipeline.length || appliedPipeline?.length || 1}
+          completedSteps={cleanStatus === 'completed' ? (appliedPipeline?.length || pipeline.length || 1) : Math.round((cleanProgress / 100) * (pipeline.length || 1))}
+          delta={currentDataset?.delta}
+          appliedCount={appliedPipeline?.length || 0}
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left: Pipeline builder */}

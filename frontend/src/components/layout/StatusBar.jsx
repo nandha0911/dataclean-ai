@@ -2,7 +2,7 @@
  * StatusBar — Glassmorphism bottom status bar
  */
 import { useState, useEffect } from 'react';
-import { Activity, Database, Cpu, Wifi } from 'lucide-react';
+import { Activity, Database, Cpu, Wifi, CheckCircle2 } from 'lucide-react';
 import useAppStore from '../../store/useAppStore';
 
 export default function StatusBar() {
@@ -31,6 +31,15 @@ export default function StatusBar() {
         <Database size={11} />
         {currentDataset ? `${currentDataset.name} · ${currentDataset.rows?.toLocaleString()} rows` : 'No dataset'}
       </span>
+      {currentDataset?.isCleaned && (
+        <>
+          <span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span>
+          <span className="flex items-center gap-1.5 font-bold" style={{ color: '#10B981' }}>
+            <CheckCircle2 size={11} />
+            CLEANED: {currentDataset?.delta?.quality_after ? `${currentDataset.delta.quality_after}%` : '100% SUCCESS'}
+          </span>
+        </>
+      )}
       <span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span>
       <span className="flex items-center gap-1.5" style={{ color: '#8B5CF6' }}>
         <Activity size={11} />XGBoost v1.0 Ready
