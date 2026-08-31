@@ -13,15 +13,21 @@ let activeBackendUrl = null;
 export const autoDiscoverBackend = async () => {
   if (activeBackendUrl) return activeBackendUrl;
 
+  // If running locally/offline, immediately use local backend
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    activeBackendUrl = 'http://127.0.0.1:8000';
+    return activeBackendUrl;
+  }
+
   const candidates = [
     typeof window !== 'undefined' ? localStorage.getItem('DATACLEAN_API_URL') : null,
+    'http://127.0.0.1:8000',
+    'http://localhost:8000',
     'https://dataclean-ai-production.up.railway.app',
     import.meta.env.VITE_API_URL,
     typeof window !== 'undefined' && !window.location.hostname.includes('netlify.app') && !window.location.hostname.includes('localhost') ? window.location.origin : null,
     'https://dataclean-ai-backend.onrender.com',
     'https://nandha2425-dataclean-ai-backend.hf.space',
-    'http://localhost:8000',
-    'http://127.0.0.1:8000',
   ].filter(Boolean).map(u => u.trim().replace(/\/+$/, '').replace(/\/api$/, ''));
 
   const probe = async (target) => {
