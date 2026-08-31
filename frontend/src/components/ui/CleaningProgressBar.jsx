@@ -104,7 +104,7 @@ export default function CleaningProgressBar({
       </div>
 
       {/* Delta Metrics Summary */}
-      {(isCompleted || delta) && (
+      {isCompleted && delta && (
         <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="p-2.5 bg-gray-50 rounded-2xl border border-gray-100">
             <span className="text-[10px] text-gray-400 font-bold block uppercase">Nulls Resolved</span>
