@@ -404,57 +404,61 @@ export default function CleaningDashboard() {
   const addAllAiSuggestions = () => {
     if (!recommendations?.length) return toast.error('No AI suggestions available');
 
-    // Only auto-apply SAFE cleaning operations — block destructive/irreversible ops
+    // Skip informational / profiling cards (they do not clean data)
+    const isInformational = (rec) => {
+      const cat = (rec?.category || '').toLowerCase();
+      const tech = (rec?.technique || '').toLowerCase();
+      return cat.startsWith('a.') || cat.includes('profiling') || tech.includes('summary') || tech.includes('profiling');
+    };
+
+    // ML transformation operations that shouldn't be auto-applied in bulk
     const DESTRUCTIVE_OPS = new Set([
-      // ML Preprocessing (changes scale/values)
       'robust_scaling', 'standard_scaling', 'minmax_scaling', 'max_abs_scaling',
       'log_transformation', 'log_transform', 'log',
       'power_transformation', 'power_transform',
       'sqrt_transformation', 'sqrt_transform', 'sqrt',
       'quantile_transformation', 'quantile_transform',
-      // Encoding (changes data representation)
       'label_encoding', 'label_encode',
       'one_hot_encoding', 'onehot', 'one_hot',
       'ordinal_encoding', 'ordinal_encode',
       'binary_encoding', 'binary_encode',
       'frequency_encoding', 'freq_encode',
       'target_encoding', 'target_encode',
-      // Resampling
       'smote', 'smote_oversample',
       'random_oversample', 'random_undersample',
       'binning', 'discretize',
-      // Privacy / Irreversible transformations
       'pseudonymize', 'pseudonymization', 'remove_pii', 'mask_data',
-      // Column deletion — never auto-delete columns
-      'delete_column', 'drop_column', 'delete_col',
-      'delete_column_(id_column)', 'delete_column_id_column', 'delete_id_column',
-      // Fuzzy dedup on text — can wrongly merge distinct names
       'fuzzy_deduplication', 'fuzzy_dedup', 'fuzzy_duplicate_detection',
     ]);
 
+    const seenTargets = new Set();
     const safe = [];
     const blocked = [];
 
+    // Filter and pick highest-confidence primary cleaning operation per column/issue
     recommendations.forEach(rec => {
+      if (isInformational(rec)) return;
       const tech = (rec.technique || 'mean_imputation').toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
+      
       if (DESTRUCTIVE_OPS.has(tech)) {
         blocked.push(rec.technique);
-      } else {
+        return;
+      }
+
+      // Ensure 1 primary imputation / fix per column
+      const targetKey = `${rec.column}-${rec.category || tech}`;
+      if (!seenTargets.has(targetKey)) {
+        seenTargets.add(targetKey);
         safe.push({ column: rec.column, technique: tech, id: Date.now() + Math.random() });
       }
     });
 
     if (safe.length === 0) {
-      return toast.error('All AI suggestions are ML transformations. Add them manually if needed.');
+      return toast.error('No actionable cleaning fixes found. Add custom operations from the list below.');
     }
 
     setPipeline(prev => [...prev, ...safe]);
-
-    if (blocked.length > 0) {
-      toast.success(`Added ${safe.length} safe cleaning operations. Skipped ${blocked.length} ML transformations (scaling/encoding) — add manually if needed.`, { duration: 5000 });
-    } else {
-      toast.success(`Added ${safe.length} AI suggestions to pipeline`);
-    }
+    toast.success(`Added ${safe.length} actionable cleaning operations (Imputation, Duplicate Removal, Standardization, Outlier Treatment) to pipeline!`);
   };
 
   const runPipeline = async () => {

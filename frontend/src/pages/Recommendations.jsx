@@ -272,10 +272,16 @@ export default function Recommendations() {
       'fuzzy_deduplication', 'fuzzy_dedup', 'fuzzy_duplicate_detection',
     ]);
 
+    // Pick the best non-conflicting cleaning operation per column
+    const seenColCategory = new Set();
     const pending = actionableRecs.filter(r => {
       const key = `${r.column}-${r.technique}`;
       const tech = (r.technique || '').toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
-      return !applied.has(key) && !DESTRUCTIVE_OPS.has(tech);
+      if (applied.has(key) || DESTRUCTIVE_OPS.has(tech)) return false;
+      const targetKey = `${r.column}-${r.category || tech}`;
+      if (seenColCategory.has(targetKey)) return false;
+      seenColCategory.add(targetKey);
+      return true;
     });
 
     const blocked = actionableRecs.filter(r => {
