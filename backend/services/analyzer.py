@@ -263,7 +263,10 @@ class DataAnalyzer:
                             inconsistent_categories = inconsistents
 
                 # Datetime Check
-                if 'date' in str(col).lower() or 'time' in str(col).lower() or dtype in ['datetime', 'date']:
+                col_str_lower = str(col).lower()
+                dt_pattern = r'(?:^|[_\W])(date|datetime|timestamp|time_utc|_date|_time)(?:[_\W]|$)'
+                is_excluded_name = any(kw in col_str_lower for kw in ['sentiment', 'estimate', 'runtime', 'lifetime', 'overtime', 'score', 'count', 'amount', 'rate'])
+                if (re.search(dt_pattern, col_str_lower) and not is_excluded_name) or dtype in ['datetime', 'date']:
                     is_date_column = True
                 
                 if pd.api.types.is_datetime64_any_dtype(series):

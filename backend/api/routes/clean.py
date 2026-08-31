@@ -93,11 +93,14 @@ async def clean_dataset(dataset_id: int, request: Union[CleaningRequest, List[di
         db.add(job)
         await db.commit()
         
-        # Calculate quality scores before & after for delta
-        orig_analysis = analyzer.analyze(df_original, dataset_id)
+        # Fast representative sampling for delta quality calculation (<0.3s)
+        sample_n = min(10000, len(df_original))
+        df_orig_sample = df_original.sample(n=sample_n, random_state=42) if len(df_original) > 10000 else df_original
+        orig_analysis = analyzer.analyze(df_orig_sample, dataset_id)
         orig_score = scorer.calculate_score(orig_analysis, len(df_original))
         
-        clean_analysis = analyzer.analyze(df_clean, dataset_id)
+        df_clean_sample = df_clean.sample(n=min(sample_n, len(df_clean)), random_state=42) if len(df_clean) > 10000 else df_clean
+        clean_analysis = analyzer.analyze(df_clean_sample, dataset_id)
         clean_score = scorer.calculate_score(clean_analysis, len(df_clean))
 
         rows_before = len(df_original)
