@@ -255,7 +255,7 @@ class DataCleaner:
             if column in df.columns:
                 mask = df[column].notnull()
                 df.loc[mask, column] = df.loc[mask, column].astype(str).str.strip().str.title()
-                df[column].replace({'Nan': None, 'None': None, 'Null': None, '': None, 'nan': None}, inplace=True)
+                df[column] = df[column].replace({'Nan': None, 'None': None, 'Null': None, '': None, 'nan': None})
         except: pass
         return df
 

@@ -142,7 +142,7 @@ class DataAnalyzer:
                 
                 unique_identifier = is_potential_id_column(series)
 
-                if pd.api.types.is_numeric_dtype(series):
+                if pd.api.types.is_numeric_dtype(series) and not pd.api.types.is_bool_dtype(series):
                     s_dropna = series.dropna()
                     if not s_dropna.empty:
                         zero_count = int((s_dropna == 0).sum())
