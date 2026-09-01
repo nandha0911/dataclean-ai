@@ -428,6 +428,11 @@ export default function CleaningDashboard() {
       'random_oversample', 'random_undersample',
       'binning', 'discretize',
       'pseudonymize', 'pseudonymization', 'remove_pii', 'mask_data',
+      'delete_column', 'drop_column', 'delete_col',
+      'delete_rows_with_missing', 'drop_missing', 'listwise_deletion',
+      'iqr_outlier_removal', 'iqr_outlier', 'iqr',
+      'z_score_outlier_removal', 'zscore_outlier_removal', 'zscore',
+      'mad_outlier_removal', 'isolation_forest', 'lof_outlier_removal',
       'fuzzy_deduplication', 'fuzzy_dedup', 'fuzzy_duplicate_detection',
     ]);
 

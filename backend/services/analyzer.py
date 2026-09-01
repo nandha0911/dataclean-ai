@@ -147,8 +147,10 @@ class DataAnalyzer:
                 
                 unique_identifier = is_potential_id_column(series)
 
-                if pd.api.types.is_numeric_dtype(series) and not pd.api.types.is_bool_dtype(series):
-                    s_dropna = series.dropna()
+                is_binary_flag = set(series_norm.dropna().unique()).issubset({0, 1, 0.0, 1.0, '0', '1'}) or unique_count <= 2
+                
+                if pd.api.types.is_numeric_dtype(series_norm) and not pd.api.types.is_bool_dtype(series_norm) and not is_binary_flag:
+                    s_dropna = series_norm.dropna()
                     if not s_dropna.empty:
                         zero_count = int((s_dropna == 0).sum())
                         negative_count = int((s_dropna < 0).sum())
