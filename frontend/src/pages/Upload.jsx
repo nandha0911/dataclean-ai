@@ -1,7 +1,8 @@
 /**
  * High-Speed Upload & AI Ingestion Engine
  * Max 5 GB dataset ingestion with real-time chunk streaming,
- * live progress indicators, and instant automatic quality scanning.
+ * live progress indicators, instant automatic quality scanning,
+ * and active dataset replacement confirmation warnings.
  */
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
@@ -9,7 +10,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   Upload, FileText, AlertCircle, X, ArrowRight,
-  Activity, CheckCircle2, Database, Sparkles, BarChart2
+  Activity, CheckCircle2, Database, Sparkles, BarChart2,
+  AlertTriangle, RefreshCw
 } from 'lucide-react';
 import useAppStore from '../store/useAppStore';
 import { uploadDataset, analyzeDataset } from '../api/client';
@@ -24,8 +26,10 @@ const ACCEPTED_TYPES = {
 
 export default function UploadPage() {
   const navigate = useNavigate();
-  const { setDataset, setAnalysis } = useAppStore();
+  const { currentDataset, setDataset, setAnalysis, clearAppliedPipeline } = useAppStore();
   const [file, setFile] = useState(null);
+  const [pendingFile, setPendingFile] = useState(null);
+  const [showReplaceWarning, setShowReplaceWarning] = useState(false);
   const [uploadPercent, setUploadPercent] = useState(0);
   const [uploadBytes, setUploadBytes] = useState({ loaded: 0, total: 0 });
   const [chunkInfo, setChunkInfo] = useState({ current: 0, total: 0 });
@@ -35,12 +39,42 @@ export default function UploadPage() {
 
   const onDrop = useCallback((accepted) => {
     if (!accepted.length) return;
-    setFile(accepted[0]);
+    const newFile = accepted[0];
+
+    // If a dataset is already active and the new file is different, show confirmation warning
+    if (currentDataset?.id && currentDataset.name !== newFile.name) {
+      setPendingFile(newFile);
+      setShowReplaceWarning(true);
+      return;
+    }
+
+    setFile(newFile);
     setStep('idle');
     setResult(null);
     setUploadPercent(0);
     setChunkInfo({ current: 0, total: 0 });
-  }, []);
+  }, [currentDataset]);
+
+  const confirmReplace = () => {
+    if (pendingFile) {
+      setFile(pendingFile);
+      setStep('idle');
+      setResult(null);
+      setUploadPercent(0);
+      setChunkInfo({ current: 0, total: 0 });
+      if (typeof clearAppliedPipeline === 'function') {
+        clearAppliedPipeline();
+      }
+      setShowReplaceWarning(false);
+      setPendingFile(null);
+      toast.success(`Ready to ingest ${pendingFile.name}`);
+    }
+  };
+
+  const cancelReplace = () => {
+    setShowReplaceWarning(false);
+    setPendingFile(null);
+  };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -121,7 +155,68 @@ export default function UploadPage() {
         <p className="text-gray-500 font-medium">
           Supports CSV, Excel (.xlsx, .xls), and JSON files
         </p>
+
+        {/* Current Active Dataset Indicator Banner */}
+        {currentDataset?.id && !isProcessing && (
+          <div className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#F2F5F3] border border-[#7C9082]/30 rounded-full text-xs font-semibold text-[#7C9082]">
+            <span className="w-2 h-2 rounded-full bg-[#7C9082] animate-pulse" />
+            <span>Active Session: <strong>{currentDataset.name}</strong> ({currentDataset.rows?.toLocaleString()} rows)</span>
+          </div>
+        )}
       </div>
+
+      {/* Confirmation Warning Modal if a dataset is already active */}
+      <AnimatePresence>
+        {showReplaceWarning && (
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white rounded-3xl p-7 max-w-md w-full shadow-2xl border border-gray-100 flex flex-col gap-5"
+            >
+              <div className="flex items-center gap-3 text-amber-600">
+                <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center flex-shrink-0 text-amber-600">
+                  <AlertTriangle size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-extrabold text-gray-900 tracking-tight">Replace Active Dataset?</h3>
+                  <p className="text-xs text-gray-500 font-medium">You already have an active dataset loaded in session.</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-amber-50/70 border border-amber-200/60 rounded-2xl text-xs text-amber-900 flex flex-col gap-2">
+                <div>
+                  <span className="text-gray-500 block text-[11px] font-bold uppercase tracking-wider">Currently Loaded</span>
+                  <strong className="text-gray-800 font-bold">{currentDataset?.name}</strong> ({currentDataset?.rows?.toLocaleString()} records)
+                </div>
+                <div className="pt-2 border-t border-amber-200/50">
+                  <span className="text-gray-500 block text-[11px] font-bold uppercase tracking-wider">New Dataset to Ingest</span>
+                  <strong className="text-amber-800 font-bold">{pendingFile?.name}</strong> ({formatBytes(pendingFile?.size)})
+                </div>
+                <p className="text-[11px] text-amber-700 font-medium mt-1 leading-relaxed">
+                  ⚠️ Uploading this new file will replace your current quality analysis, cleaning operations history, and recommendations with the new dataset.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-1">
+                <button
+                  onClick={cancelReplace}
+                  className="btn-nd btn-nd-secondary text-xs px-4"
+                >
+                  Keep Current Dataset
+                </button>
+                <button
+                  onClick={confirmReplace}
+                  className="btn-nd btn-nd-primary text-xs px-5 shadow-sm"
+                >
+                  Proceed &amp; Replace
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Drop zone — visible when not processing */}
       {!isProcessing && !isDone && (
