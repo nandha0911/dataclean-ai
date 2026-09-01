@@ -37,16 +37,7 @@ export const LIGHT_THEMES = [
     card: '#FFFFFF',
     tag: 'Fresh Clean',
   },
-  {
-    id: 'terracotta',
-    name: 'Warm Terracotta',
-    description: 'Sun-baked warm coral and sandstone linen editorial palette',
-    primary: '#E06D53',
-    secondary: '#B45309',
-    bg: '#FAF6F4',
-    card: '#FFFFFF',
-    tag: 'Warm Pastel',
-  },
+
   {
     id: 'violet',
     name: 'Lavender & Iris',
