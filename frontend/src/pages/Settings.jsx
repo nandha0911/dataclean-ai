@@ -15,7 +15,6 @@ export const LIGHT_THEMES = [
     secondary: '#7A8B99',
     bg: '#F7F6F3',
     card: '#FFFFFF',
-    tag: 'Default',
   },
   {
     id: 'azure',
@@ -25,7 +24,6 @@ export const LIGHT_THEMES = [
     secondary: '#0284C7',
     bg: '#F8FAFC',
     card: '#FFFFFF',
-    tag: 'Tech SaaS',
   },
   {
     id: 'emerald',
@@ -35,9 +33,16 @@ export const LIGHT_THEMES = [
     secondary: '#0D9488',
     bg: '#F4F9F6',
     card: '#FFFFFF',
-    tag: 'Fresh Clean',
   },
-
+  {
+    id: 'terracotta',
+    name: 'Warm Terracotta',
+    description: 'Sun-baked warm coral and sandstone linen editorial palette',
+    primary: '#E06D53',
+    secondary: '#B45309',
+    bg: '#FAF6F4',
+    card: '#FFFFFF',
+  },
   {
     id: 'violet',
     name: 'Lavender & Iris',
@@ -46,7 +51,6 @@ export const LIGHT_THEMES = [
     secondary: '#6366F1',
     bg: '#F8F7FC',
     card: '#FFFFFF',
-    tag: 'AI Modern',
   },
   {
     id: 'amber',
@@ -56,7 +60,6 @@ export const LIGHT_THEMES = [
     secondary: '#EA580C',
     bg: '#FDFBF7',
     card: '#FFFFFF',
-    tag: 'Executive',
   },
 ];
 
@@ -102,16 +105,6 @@ export default function Settings() {
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-extrabold text-gray-900 text-sm">{t.name}</span>
-                        <span
-                          className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                          style={{
-                            backgroundColor: `${t.primary}15`,
-                            color: t.primary,
-                            border: `1px solid ${t.primary}30`
-                          }}
-                        >
-                          {t.tag}
-                        </span>
                       </div>
                       <p className="text-xs text-gray-500 font-medium leading-relaxed max-w-xs">{t.description}</p>
                     </div>

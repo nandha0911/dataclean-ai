@@ -23,6 +23,7 @@ const THEME_NAMES = {
   'sage': 'Nordic Sage',
   'azure': 'Royal Azure',
   'emerald': 'Emerald Mint',
+  'terracotta': 'Warm Terracotta',
   'violet': 'Lavender & Iris',
   'amber': 'Amber Honey',
 };
