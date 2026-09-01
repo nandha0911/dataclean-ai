@@ -285,14 +285,16 @@ class DataAnalyzer:
                     s_str = series.dropna().astype(str)
                     if not s_str.empty:
                         try:
-                            parsed_dates = pd.to_datetime(s_str, errors='coerce')
-                            if not parsed_dates.isna().all():
-                                valid_dates = parsed_dates.dropna()
-                                if not valid_dates.empty:
-                                    has_future_dates = bool((valid_dates > datetime.now()).any())
-                                format_counts = s_str.str.len().nunique()
-                                if format_counts > 2:
-                                    date_format_inconsistent = True
+                            sample_s = s_str.head(200)
+                            if sample_s.str.len().max() <= 35:
+                                parsed_dates = pd.to_datetime(sample_s, errors='coerce')
+                                if not parsed_dates.isna().all():
+                                    valid_dates = parsed_dates.dropna()
+                                    if not valid_dates.empty:
+                                        has_future_dates = bool((valid_dates > datetime.now()).any())
+                                    format_counts = sample_s.str.len().nunique()
+                                    if format_counts > 2:
+                                        date_format_inconsistent = True
                         except:
                             pass
 

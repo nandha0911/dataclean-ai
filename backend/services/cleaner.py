@@ -368,26 +368,48 @@ class DataCleaner:
     # D. Data Types
     def auto_type_cast(self, df: pd.DataFrame, column: str):
         try:
-            df[column] = pd.to_numeric(df[column], errors='ignore')
-            if df[column].dtype == object:
-                # check if boolean
-                unique_vals = set(df[column].dropna().astype(str).str.lower())
-                if unique_vals.issubset({'true', 'false', '1', '0', 'yes', 'no'}):
-                    return self.boolean_conversion(df, column)
-                df[column] = pd.to_datetime(df[column], errors='ignore')
+            col = self._resolve_column(df, column)
+            if not col: return df
+            
+            # 1. Fast numeric conversion
+            try:
+                df[col] = pd.to_numeric(df[col])
+                return df
+            except (ValueError, TypeError):
+                pass
+                
+            if df[col].dtype == object:
+                s_non_null = df[col].dropna()
+                if not s_non_null.empty:
+                    sample = s_non_null.head(100).astype(str).str.lower().str.strip()
+                    # 2. Check boolean
+                    if set(sample.unique()).issubset({'true', 'false', '1', '0', 'yes', 'no', 'y', 'n'}):
+                        return self.boolean_conversion(df, col)
+                    
+                    # 3. Only parse datetime if strings are short and look like ISO/date formats
+                    if sample.str.len().max() <= 35:
+                        date_sample = pd.to_datetime(sample, errors='coerce')
+                        if date_sample.notnull().mean() >= 0.8:
+                            df[col] = pd.to_datetime(df[col], errors='coerce')
         except: pass
         return df
 
     def boolean_conversion(self, df: pd.DataFrame, column: str):
         try:
-            bool_map = {'yes': True, 'no': False, 'true': True, 'false': False, '1': True, '0': False}
-            df[column] = df[column].astype(str).str.lower().map(bool_map)
+            col = self._resolve_column(df, column)
+            if col:
+                bool_map = {'yes': True, 'no': False, 'true': True, 'false': False, '1': True, '0': False, 'y': True, 'n': False}
+                df[col] = df[col].astype(str).str.lower().str.strip().map(bool_map)
         except: pass
         return df
 
     def datetime_conversion(self, df: pd.DataFrame, column: str):
         try:
-            df[column] = pd.to_datetime(df[column], errors='coerce')
+            col = self._resolve_column(df, column)
+            if col:
+                sample = df[col].dropna().head(50).astype(str)
+                if not sample.empty and sample.str.len().max() <= 35:
+                    df[col] = pd.to_datetime(df[col], errors='coerce')
         except: pass
         return df
 
