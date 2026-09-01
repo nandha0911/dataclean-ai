@@ -118,9 +118,8 @@ export default function UploadPage() {
           <Database size={28} />
         </div>
         <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-2">Upload your dataset</h2>
-        <p className="text-gray-500 font-medium flex items-center justify-center gap-2">
-          <span>Supports CSV, Excel (.xlsx, .xls), and JSON files up to</span>
-          <span className="px-2.5 py-0.5 bg-[#7C9082]/15 text-[#7C9082] rounded-full text-xs font-bold">5 GB Enterprise Max</span>
+        <p className="text-gray-500 font-medium">
+          Supports CSV, Excel (.xlsx, .xls), and JSON files
         </p>
       </div>
 
