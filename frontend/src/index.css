@@ -109,12 +109,12 @@ html { scroll-behavior: smooth; }
 
 body {
   font-family: 'Plus Jakarta Sans', sans-serif;
-  background-color: var(--nd-bg);
+  background-color: var(--nd-bg) !important;
   color: var(--nd-text-p);
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 /* ── Typography ─────────────────────────────────────────────── */
@@ -123,10 +123,35 @@ body {
 
 .text-p { color: var(--nd-text-p); }
 .text-s { color: var(--nd-text-s); }
-.text-sage { color: var(--nd-sage); }
+.text-sage { color: var(--nd-primary) !important; }
 .text-dusty { color: var(--nd-dusty); }
 .text-mustard { color: var(--nd-mustard); }
 .text-terra { color: var(--nd-terra); }
+
+/* ── Dynamic Overrides for Color Class Mapping ─────────────── */
+[class*="text-[#7C9082]"], [class*="text-[#7c9082]"] {
+  color: var(--nd-primary) !important;
+}
+
+[class*="bg-[#7C9082]"], [class*="bg-[#7c9082]"] {
+  background-color: var(--nd-primary) !important;
+}
+
+[class*="bg-[#7C9082]/10"], [class*="bg-[#7C9082]/15"], [class*="bg-[#7C9082]/20"], [class*="bg-[#7c9082]/10"], [class*="bg-[#7c9082]/20"] {
+  background-color: rgba(var(--nd-primary-rgb), 0.14) !important;
+}
+
+[class*="border-[#7C9082]"], [class*="border-[#7c9082]"] {
+  border-color: var(--nd-primary) !important;
+}
+
+[class*="border-[#7C9082]/20"], [class*="border-[#7C9082]/30"], [class*="border-[#7c9082]/20"], [class*="border-[#7c9082]/30"] {
+  border-color: rgba(var(--nd-primary-rgb), 0.25) !important;
+}
+
+[class*="bg-[#F7F6F3]"], [class*="bg-[#f7f6f3]"], [class*="bg-[#F2F5F3]"], [class*="bg-[#f2f5f3]"], [class*="bg-[#F9FAF9]"] {
+  background-color: var(--nd-bg) !important;
+}
 
 /* ── Cards ──────────────────────────────────────────────────── */
 .nordic-card {
@@ -152,13 +177,13 @@ body {
   border: 1px solid transparent;
 }
 .btn-nd-primary {
-  background: var(--nd-text-p);
-  color: var(--nd-surface);
+  background: var(--nd-primary) !important;
+  color: white !important;
 }
 .btn-nd-primary:hover {
-  background: #1A202C;
+  background: var(--nd-primary-hover) !important;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px rgba(var(--nd-primary-rgb), 0.35);
 }
 .btn-nd-secondary {
   background: var(--nd-bg);
@@ -169,8 +194,8 @@ body {
   background: var(--nd-surface);
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
-.btn-nd-sage    { background: var(--nd-sage);    color: white; }
-.btn-nd-sage:hover    { opacity: 0.92; box-shadow: 0 4px 12px rgba(var(--nd-primary-rgb), 0.35); transform: translateY(-1px); }
+.btn-nd-sage    { background: var(--nd-primary) !important; color: white !important; }
+.btn-nd-sage:hover    { background: var(--nd-primary-hover) !important; box-shadow: 0 4px 12px rgba(var(--nd-primary-rgb), 0.35); transform: translateY(-1px); }
 
 .btn-nd-mustard { background: var(--nd-mustard); color: white; }
 .btn-nd-mustard:hover { opacity: 0.92; box-shadow: 0 4px 12px rgba(212,163,115,0.3); transform: translateY(-1px); }
@@ -192,7 +217,7 @@ body {
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
-.badge-sage    { background: rgba(var(--nd-primary-rgb), 0.12); color: var(--nd-sage); border: 1px solid rgba(var(--nd-primary-rgb), 0.2); }
+.badge-sage    { background: rgba(var(--nd-primary-rgb), 0.14) !important; color: var(--nd-primary) !important; border: 1px solid rgba(var(--nd-primary-rgb), 0.25); }
 .badge-dusty   { background: rgba(122,139,153,0.12); color: var(--nd-dusty); }
 .badge-mustard { background: rgba(212,163,115,0.12); color: var(--nd-mustard); }
 .badge-terra   { background: rgba(200,130,114,0.12); color: var(--nd-terra); }
