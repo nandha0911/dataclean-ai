@@ -500,11 +500,24 @@ class DataCleaner:
     # G. Categorical
     def merge_rare_categories(self, df: pd.DataFrame, column: str, threshold=0.01, replace_with='Other'):
         try:
-            if column in df.columns and not pd.api.types.is_numeric_dtype(df[column]):
-                counts = df[column].value_counts(normalize=True)
-                rare_cats = set(counts[counts < threshold].index)
-                if rare_cats:
-                    df[column] = df[column].apply(lambda x: replace_with if x in rare_cats else x)
+            col = self._resolve_column(df, column)
+            if not col or pd.api.types.is_numeric_dtype(df[col]):
+                return df
+
+            # NEVER merge names, IDs, text, codes, emails, clubs, or entities
+            col_lower = str(col).lower()
+            if any(k in col_lower for k in ['id', 'name', 'email', 'title', 'desc', 'comment', 'text', 'code', 'url', 'address', 'club', 'team', 'city', 'stadium', 'author', 'user', 'player', 'customer']):
+                return df
+
+            unique_cnt = df[col].nunique()
+            # Only merge if it's a true categorical factor with <= 30 categories and low cardinality
+            if unique_cnt > 30 or (unique_cnt / max(1, len(df))) > 0.05:
+                return df
+
+            counts = df[col].value_counts(normalize=True)
+            rare_cats = set(counts[counts < threshold].index)
+            if rare_cats and len(rare_cats) < len(counts):
+                df[col] = df[col].apply(lambda x: replace_with if x in rare_cats else x)
         except Exception:
             pass
         return df

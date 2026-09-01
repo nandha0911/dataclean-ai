@@ -401,14 +401,15 @@ class AIRecommender:
                 ))
 
             # G. Categorical
-            if is_categorical and rare_category_count > 0:
+            is_id_or_name_col = any(k in col_name.lower() for k in ['id', 'name', 'email', 'title', 'desc', 'comment', 'text', 'code', 'url', 'address', 'club', 'team', 'city', 'stadium', 'author', 'user', 'player', 'customer'])
+            if is_categorical and rare_category_count > 0 and not is_id_or_name_col and cardinality < 0.05 and unique_count <= 30:
                 recommendations.append(self._build_rec(
                     column=col_name,
                     technique="Rare Category Grouping",
                     confidence=85,
-                    reason=f"Found {rare_category_count} rare categories.",
-                    advantages=["Reduces dimensionality", "Improves model generalization"],
-                    disadvantages=["Loss of granular information"],
+                    reason=f"Found {rare_category_count} rare categories with low frequency.",
+                    advantages=["Reduces dimensionality for tree models", "Consolidates low-frequency categories"],
+                    disadvantages=["⚠️ Replaces rare category labels with 'Other'. Use only when preparing categorical features for ML, not for entity/name data."],
                     alternatives=[],
                     expected_improvement="More stable categorical features.",
                     category="G. Categorical"

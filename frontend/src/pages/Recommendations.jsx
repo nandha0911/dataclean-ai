@@ -82,6 +82,7 @@ const MANUAL_REVIEW_OPS = new Set([
   'iqr_outlier_removal', 'iqr_outlier', 'iqr',
   'z_score_outlier_removal', 'zscore_outlier_removal', 'zscore',
   'mad_outlier_removal', 'isolation_forest', 'lof_outlier_removal',
+  'rare_category_grouping', 'merge_rare_categories', 'rare_categories', 'group_rare',
   'fuzzy_deduplication', 'fuzzy_dedup', 'fuzzy_duplicate_detection',
 ]);
 
