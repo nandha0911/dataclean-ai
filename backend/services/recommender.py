@@ -401,7 +401,7 @@ class AIRecommender:
                 ))
 
             # G. Categorical
-            if rare_category_count > 0:
+            if is_categorical and rare_category_count > 0:
                 recommendations.append(self._build_rec(
                     column=col_name,
                     technique="Rare Category Grouping",

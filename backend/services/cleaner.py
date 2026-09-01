@@ -473,7 +473,7 @@ class DataCleaner:
     # G. Categorical
     def merge_rare_categories(self, df: pd.DataFrame, column: str, threshold=0.01, replace_with='Other'):
         try:
-            if column in df.columns:
+            if column in df.columns and not pd.api.types.is_numeric_dtype(df[column]):
                 counts = df[column].value_counts(normalize=True)
                 rare_cats = set(counts[counts < threshold].index)
                 if rare_cats:
