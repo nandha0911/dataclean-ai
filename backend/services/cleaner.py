@@ -779,6 +779,39 @@ class DataCleaner:
         except: pass
         return df
 
+    def delete_high_null_rows(self, df: pd.DataFrame, threshold_pct: float = 0.65) -> pd.DataFrame:
+        """
+        Deletes rows that are completely empty or have > 65% missing/null values across columns.
+        Also promotes header row if top row contains column names and headers were 'Unnamed'.
+        """
+        try:
+            df = df.replace(['NULL', 'null', 'None', 'none', 'NaN', 'nan', 'N/A', 'n/a', 'NA', 'na', '?', '', ' '], np.nan)
+            df.dropna(how='all', inplace=True)
+            if df.shape[1] > 2:
+                max_nulls_allowed = int(df.shape[1] * threshold_pct)
+                null_counts = df.isnull().sum(axis=1)
+                mask = null_counts <= max_nulls_allowed
+                df = df.loc[mask].copy()
+
+            # If top row looks like a header (e.g. 'Unnamed: X' columns and row 0 has string names)
+            if not df.empty and any('unnamed' in str(c).lower() for c in df.columns):
+                first_row = df.iloc[0]
+                if first_row.notnull().mean() > 0.5:
+                    new_cols = []
+                    for orig_c, val in zip(df.columns, first_row):
+                        if pd.notnull(val) and str(val).strip():
+                            new_cols.append(str(val).strip())
+                        else:
+                            new_cols.append(str(orig_c))
+                    if len(set(new_cols)) == len(new_cols):
+                        df.columns = new_cols
+                        df = df.iloc[1:].copy()
+
+            df.reset_index(drop=True, inplace=True)
+        except Exception:
+            pass
+        return df
+
     def apply_cleaning_plan(self, df: pd.DataFrame, operations_list: list) -> tuple:
         df_clean = df.copy()
         for col_name in df_clean.columns:
@@ -787,6 +820,7 @@ class DataCleaner:
                     ['NULL', 'null', 'None', 'none', 'NaN', 'nan', 'N/A', 'n/a', 'NA', 'na', '?', '-', ''],
                     np.nan
                 )
+        df_clean = self.delete_high_null_rows(df_clean, threshold_pct=0.65)
         report = []
         for op in operations_list:
             col = op.get('column')
@@ -857,6 +891,8 @@ class DataCleaner:
                     df_clean = self.missing_indicator(df_clean, col)
                 elif action in ["listwise_deletion", "drop_all_missing", "dropna"]:
                     df_clean = self.listwise_deletion(df_clean)
+                elif action in ["delete_high_null_rows", "high_null_row_deletion", "drop_high_null_rows", "delete_empty_rows", "drop_empty_rows", "remove_null_rows"]:
+                    df_clean = self.delete_high_null_rows(df_clean, threshold_pct=0.65)
                 
                 # C. Duplicates
                 elif action in ["fuzzy_deduplication", "fuzzy_dedup", "fuzzy_duplicates", "fuzzy_duplicate_detection"]:

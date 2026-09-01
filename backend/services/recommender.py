@@ -33,6 +33,20 @@ class AIRecommender:
                 category="C. Duplicates"
             ))
 
+        high_null_rows = analysis_result.get('high_null_rows', 0) or analysis_result.get('dataset_level', {}).get('high_null_rows', 0)
+        if high_null_rows > 0:
+            recommendations.append(self._build_rec(
+                column="dataset",
+                technique="High-Null Row Deletion",
+                confidence=98,
+                reason=f"Found {high_null_rows} rows with more than 65% missing/empty cells (ghost/empty preamble records).",
+                advantages=["Removes garbage preamble rows and ghost records", "Drastically boosts completeness and data validity"],
+                disadvantages=["Permanently drops unpopulated rows"],
+                alternatives=["Listwise Deletion"],
+                expected_improvement="Dataset starts cleanly with valid structured records.",
+                category="B. Missing Data"
+            ))
+
         columns = analysis_result.get('columns', [])
         
         for col in columns:

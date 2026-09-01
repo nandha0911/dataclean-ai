@@ -363,11 +363,21 @@ class DataAnalyzer:
                 # Catch any issues so one column failure won't crash the whole analysis
                 print(f"Error analyzing column {col}: {e}")
 
+        high_null_rows = 0
+        try:
+            if df.shape[1] > 2:
+                nulls_per_row = df.isnull().sum(axis=1)
+                high_null_rows = int((nulls_per_row >= int(df.shape[1] * 0.65)).sum())
+        except Exception:
+            pass
+        dataset_level["high_null_rows"] = high_null_rows
+
         return {
             "dataset_id": dataset_id,
             "columns": columns_analysis,
             "correlation_matrix": correlation_matrix,
             "dataset_level": dataset_level,
             "full_row_duplicates": full_row_duplicates,
+            "high_null_rows": high_null_rows,
             "quality_score": {}
         }
