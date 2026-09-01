@@ -5,20 +5,103 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════════════
-   DATACLEAN AI — NORDIC LIGHT THEME
-   Warm sand background · Soft shadows · Earthy pastels
+   DATACLEAN AI — 6 BEAUTIFUL LIGHT THEME COLOR PALETTES
    ═══════════════════════════════════════════════════════════════ */
 
-:root {
-  --nd-bg:       #F7F6F3;
-  --nd-surface:  #FFFFFF;
-  --nd-border:   #E2E8F0;
-  --nd-text-p:   #2D3748;
-  --nd-text-s:   #718096;
-  --nd-sage:     #7C9082;
-  --nd-dusty:    #7A8B99;
-  --nd-mustard:  #D4A373;
-  --nd-terra:    #C88272;
+/* 1. Nordic Sage (Earthy Natural Light - Default) */
+:root, [data-theme="sage"] {
+  --nd-bg:            #F7F6F3;
+  --nd-surface:       #FFFFFF;
+  --nd-border:        #E2E8F0;
+  --nd-text-p:        #2D3748;
+  --nd-text-s:        #718096;
+  --nd-primary:       #7C9082;
+  --nd-primary-rgb:   124, 144, 130;
+  --nd-primary-hover: #677A6C;
+  --nd-sage:          #7C9082;
+  --nd-dusty:         #7A8B99;
+  --nd-mustard:       #D4A373;
+  --nd-terra:         #C88272;
+}
+
+/* 2. Royal Azure (Modern Tech / Ocean Blue Light) */
+[data-theme="azure"] {
+  --nd-bg:            #F8FAFC;
+  --nd-surface:       #FFFFFF;
+  --nd-border:        #E2E8F0;
+  --nd-text-p:        #1E293B;
+  --nd-text-s:        #64748B;
+  --nd-primary:       #2563EB;
+  --nd-primary-rgb:   37, 99, 235;
+  --nd-primary-hover: #1D4ED8;
+  --nd-sage:          #2563EB;
+  --nd-dusty:         #0284C7;
+  --nd-mustard:       #F59E0B;
+  --nd-terra:         #EF4444;
+}
+
+/* 3. Emerald Mint (Fresh Clean FinTech Light) */
+[data-theme="emerald"] {
+  --nd-bg:            #F4F9F6;
+  --nd-surface:       #FFFFFF;
+  --nd-border:        #D1FAE5;
+  --nd-text-p:        #13382C;
+  --nd-text-s:        #3B6D5A;
+  --nd-primary:       #059669;
+  --nd-primary-rgb:   5, 150, 105;
+  --nd-primary-hover: #047857;
+  --nd-sage:          #059669;
+  --nd-dusty:         #0D9488;
+  --nd-mustard:       #D97706;
+  --nd-terra:         #E11D48;
+}
+
+/* 4. Warm Terracotta (Coral & Warm Sandstone Light) */
+[data-theme="terracotta"] {
+  --nd-bg:            #FAF6F4;
+  --nd-surface:       #FFFFFF;
+  --nd-border:        #FED7AA;
+  --nd-text-p:        #3C2219;
+  --nd-text-s:        #785448;
+  --nd-primary:       #E06D53;
+  --nd-primary-rgb:   224, 109, 83;
+  --nd-primary-hover: #C9563D;
+  --nd-sage:          #E06D53;
+  --nd-dusty:         #B45309;
+  --nd-mustard:       #F59E0B;
+  --nd-terra:         #DC2626;
+}
+
+/* 5. Lavender & Violet (Modern AI Iris Light) */
+[data-theme="violet"] {
+  --nd-bg:            #F8F7FC;
+  --nd-surface:       #FFFFFF;
+  --nd-border:        #E0E7FF;
+  --nd-text-p:        #28204E;
+  --nd-text-s:        #635A8F;
+  --nd-primary:       #7C3AED;
+  --nd-primary-rgb:   124, 58, 237;
+  --nd-primary-hover: #6D28D9;
+  --nd-sage:          #7C3AED;
+  --nd-dusty:         #6366F1;
+  --nd-mustard:       #F59E0B;
+  --nd-terra:         #EC4899;
+}
+
+/* 6. Amber Honey (Golden Warmth & Ivory Light) */
+[data-theme="amber"] {
+  --nd-bg:            #FDFBF7;
+  --nd-surface:       #FFFFFF;
+  --nd-border:        #FEF3C7;
+  --nd-text-p:        #3E2714;
+  --nd-text-s:        #7D5836;
+  --nd-primary:       #D97706;
+  --nd-primary-rgb:   217, 119, 6;
+  --nd-primary-hover: #B45309;
+  --nd-sage:          #D97706;
+  --nd-dusty:         #EA580C;
+  --nd-mustard:       #F59E0B;
+  --nd-terra:         #DC2626;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -31,6 +114,7 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* ── Typography ─────────────────────────────────────────────── */
@@ -47,10 +131,10 @@ body {
 /* ── Cards ──────────────────────────────────────────────────── */
 .nordic-card {
   background: var(--nd-surface);
-  border: 1px solid rgba(226, 232, 240, 0.6);
+  border: 1px solid var(--nd-border);
   border-radius: 24px;
   box-shadow: 0 10px 40px -10px rgba(0,0,0,0.03), 0 1px 2px rgba(0,0,0,0.01);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
 }
 .nordic-card:hover {
   box-shadow: 0 20px 60px -15px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.02);
@@ -86,16 +170,16 @@ body {
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 .btn-nd-sage    { background: var(--nd-sage);    color: white; }
-.btn-nd-sage:hover    { opacity: 0.9; box-shadow: 0 4px 12px rgba(124,144,130,0.3); transform: translateY(-1px); }
+.btn-nd-sage:hover    { opacity: 0.92; box-shadow: 0 4px 12px rgba(var(--nd-primary-rgb), 0.35); transform: translateY(-1px); }
 
 .btn-nd-mustard { background: var(--nd-mustard); color: white; }
-.btn-nd-mustard:hover { opacity: 0.9; box-shadow: 0 4px 12px rgba(212,163,115,0.3); transform: translateY(-1px); }
+.btn-nd-mustard:hover { opacity: 0.92; box-shadow: 0 4px 12px rgba(212,163,115,0.3); transform: translateY(-1px); }
 
 .btn-nd-dusty   { background: var(--nd-dusty);   color: white; }
-.btn-nd-dusty:hover   { opacity: 0.9; box-shadow: 0 4px 12px rgba(122,139,153,0.3); transform: translateY(-1px); }
+.btn-nd-dusty:hover   { opacity: 0.92; box-shadow: 0 4px 12px rgba(122,139,153,0.3); transform: translateY(-1px); }
 
 .btn-nd-terra   { background: var(--nd-terra);   color: white; }
-.btn-nd-terra:hover   { opacity: 0.9; box-shadow: 0 4px 12px rgba(200,130,114,0.3); transform: translateY(-1px); }
+.btn-nd-terra:hover   { opacity: 0.92; box-shadow: 0 4px 12px rgba(200,130,114,0.3); transform: translateY(-1px); }
 
 .btn-nd:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
 
@@ -108,10 +192,10 @@ body {
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
-.badge-sage    { background: rgba(124,144,130,0.1); color: var(--nd-sage); }
-.badge-dusty   { background: rgba(122,139,153,0.1); color: var(--nd-dusty); }
-.badge-mustard { background: rgba(212,163,115,0.1); color: var(--nd-mustard); }
-.badge-terra   { background: rgba(200,130,114,0.1); color: var(--nd-terra); }
+.badge-sage    { background: rgba(var(--nd-primary-rgb), 0.12); color: var(--nd-sage); border: 1px solid rgba(var(--nd-primary-rgb), 0.2); }
+.badge-dusty   { background: rgba(122,139,153,0.12); color: var(--nd-dusty); }
+.badge-mustard { background: rgba(212,163,115,0.12); color: var(--nd-mustard); }
+.badge-terra   { background: rgba(200,130,114,0.12); color: var(--nd-terra); }
 
 /* ── Inputs ─────────────────────────────────────────────────── */
 input, select, textarea {
@@ -127,9 +211,9 @@ input, select, textarea {
   width: 100%;
 }
 input:focus, select:focus, textarea:focus {
-  border-color: var(--nd-dusty);
+  border-color: var(--nd-primary);
   background: var(--nd-surface);
-  box-shadow: 0 0 0 3px rgba(122,139,153,0.15);
+  box-shadow: 0 0 0 3px rgba(var(--nd-primary-rgb), 0.15);
 }
 input::placeholder { color: #A0AEC0; }
 
@@ -156,11 +240,11 @@ th {
 }
 td {
   padding: 14px 16px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+  border-bottom: 1px solid var(--nd-border);
   color: var(--nd-text-p);
 }
 tr:last-child td { border-bottom: none; }
-tr:hover td { background: rgba(247, 246, 243, 0.5); }
+tr:hover td { background: rgba(0, 0, 0, 0.02); }
 
 /* ── Scrollbar ──────────────────────────────────────────────── */
 ::-webkit-scrollbar       { width: 6px; height: 6px; }
@@ -176,4 +260,4 @@ tr:hover td { background: rgba(247, 246, 243, 0.5); }
 }
 
 /* ── Selection ──────────────────────────────────────────────── */
-::selection { background: rgba(122,139,153,0.2); color: var(--nd-text-p); }
+::selection { background: rgba(var(--nd-primary-rgb), 0.2); color: var(--nd-text-p); }
