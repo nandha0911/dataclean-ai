@@ -345,10 +345,25 @@ export default function Recommendations() {
 
     const timer = setInterval(() => {
       setCleanProgress(prev => {
-        if (prev < 90) return prev + 15;
+        if (prev < 40) {
+          setCurrentStepText('Imputing missing values & normalizing text...');
+          return prev + 12;
+        }
+        if (prev < 75) {
+          setCurrentStepText('Standardizing categories & formatting fields...');
+          return prev + 7;
+        }
+        if (prev < 90) {
+          setCurrentStepText('Streaming dataset chunks through high-speed engine...');
+          return prev + 3;
+        }
+        if (prev < 98) {
+          setCurrentStepText('Streaming multi-million rows & writing cleaned output...');
+          return Math.min(98, prev + 0.5);
+        }
         return prev;
       });
-    }, 250);
+    }, 350);
 
     try {
       const res = await cleanDataset(currentDataset.id, { operations: combinedOps });

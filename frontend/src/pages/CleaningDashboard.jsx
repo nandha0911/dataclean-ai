@@ -478,19 +478,23 @@ export default function CleaningDashboard() {
       setCleanProgress(prev => {
         if (prev < 40) {
           setCurrentStepText('Imputing null values and standardizing formats...');
-          return prev + 14;
+          return prev + 12;
         }
         if (prev < 75) {
-          setCurrentStepText('Applying outlier removal & deduplicating rows...');
-          return prev + 9;
+          setCurrentStepText('Applying data transformations & cleaning text...');
+          return prev + 7;
         }
-        if (prev < 92) {
-          setCurrentStepText('Finalizing data types & calculating quality delta...');
+        if (prev < 90) {
+          setCurrentStepText('Streaming dataset chunks through high-speed engine...');
           return prev + 3;
+        }
+        if (prev < 98) {
+          setCurrentStepText('Streaming multi-million rows & writing cleaned output...');
+          return Math.min(98, prev + 0.5);
         }
         return prev;
       });
-    }, 280);
+    }, 350);
 
     const newOps = pipeline.map(p => ({ column: p.column, operation: p.technique, params: {} }));
     const combinedOps = [...(appliedPipeline || []), ...newOps];
