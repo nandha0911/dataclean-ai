@@ -70,6 +70,7 @@ const MANUAL_REVIEW_OPS = new Set([
   'log_transformation', 'log_transform', 'log', 'power_transformation', 'power_transform',
   'sqrt_transformation', 'sqrt_transform', 'sqrt', 'quantile_transformation', 'quantile_transform',
   'yeo_johnson_transformation', 'yeo_johnson', 'box_cox',
+  'moving_average_smoothing', 'moving_average', 'ma_smooth', 'rolling_median_smoothing', 'rolling_median', 'median_smooth',
   'label_encoding', 'label_encode', 'one_hot_encoding', 'onehot', 'one_hot',
   'ordinal_encoding', 'ordinal_encode', 'binary_encoding', 'binary_encode',
   'frequency_encoding', 'freq_encode', 'target_encoding', 'target_encode',

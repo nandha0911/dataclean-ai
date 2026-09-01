@@ -1017,37 +1017,50 @@ class DataCleaner:
         return df_clean, report
 
     def _restore_integer_types(self, df_before: pd.DataFrame, df_after: pd.DataFrame) -> pd.DataFrame:
+        int_keywords = ['age', 'count', 'year', 'qty', 'quantity', 'num_', 'nbr', 'days', 'months', 'score', 'goal', 'minute', 'value', 'salary', 'price', 'id', 'jersey', 'rank', 'match', 'attendance', 'capacity']
         for col in df_after.columns:
-            if col in df_before.columns:
-                orig_non_nulls = df_before[col].dropna()
+            try:
+                if not pd.api.types.is_numeric_dtype(df_after[col]):
+                    continue
                 after_non_nulls = df_after[col].dropna()
-                is_int_col = False
+                if after_non_nulls.empty:
+                    continue
+
                 col_lower = str(col).lower()
+                is_keyword_int = any(k in col_lower for k in int_keywords)
 
-                if any(k in col_lower for k in ['age', 'count', 'year', 'qty', 'quantity', 'num_', 'nbr', 'days', 'months', 'score']):
-                    is_int_col = True
-                elif not orig_non_nulls.empty and pd.api.types.is_numeric_dtype(orig_non_nulls):
-                    try:
-                        if (orig_non_nulls % 1 == 0).all():
-                            is_int_col = True
-                    except Exception:
-                        pass
+                # Check if all non-null values in the column are whole numbers
+                is_whole_number = False
+                try:
+                    num_converted = pd.to_numeric(after_non_nulls, errors='coerce')
+                    if not num_converted.empty and (num_converted % 1 == 0).all():
+                        is_whole_number = True
+                except:
+                    pass
 
-                if is_int_col and pd.api.types.is_numeric_dtype(df_after[col]):
-                    try:
-                        # Only restore int type if values are still in original scale
-                        # (not minmax/standard scaled to 0-1 or z-score range)
-                        if not orig_non_nulls.empty and not after_non_nulls.empty:
-                            orig_max = float(orig_non_nulls.max())
-                            after_max = float(after_non_nulls.max())
-                            # If original max was > 1 but after max is <= 1, scaling was applied — skip restoration
-                            if orig_max > 1.5 and after_max <= 1.5:
-                                continue
-                        df_after[col] = df_after[col].round()
-                        if not df_after[col].isnull().any():
-                            df_after[col] = df_after[col].astype('int64')
-                        else:
-                            df_after[col] = df_after[col].astype('Int64')
-                    except Exception:
-                        pass
+                # Check if original column was integer or integer-like strings
+                orig_was_int = False
+                if col in df_before.columns:
+                    orig_non_nulls = df_before[col].dropna()
+                    if not orig_non_nulls.empty:
+                        try:
+                            orig_num = pd.to_numeric(orig_non_nulls, errors='coerce')
+                            if not orig_num.empty and orig_num.notnull().mean() >= 0.8 and (orig_num.dropna() % 1 == 0).all():
+                                orig_was_int = True
+                        except:
+                            pass
+
+                if is_whole_number or orig_was_int or is_keyword_int:
+                    # Check if column was scaled into a normalized decimal (-2 to +2 range) while original was large (>10)
+                    if col in df_before.columns:
+                        orig_sample = pd.to_numeric(df_before[col].dropna().head(100), errors='coerce')
+                        if not orig_sample.empty and orig_sample.abs().max() > 10 and after_non_nulls.abs().max() <= 3.5 and not is_keyword_int:
+                            continue
+                    df_after[col] = df_after[col].round()
+                    if not df_after[col].isnull().any():
+                        df_after[col] = df_after[col].astype('int64')
+                    else:
+                        df_after[col] = df_after[col].astype('Int64')
+            except Exception:
+                pass
         return df_after
