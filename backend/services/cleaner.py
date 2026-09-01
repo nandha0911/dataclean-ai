@@ -23,6 +23,10 @@ class DataCleaner:
                 if pd.notna(val):
                     val = int(round(val)) if (num.dropna() % 1 == 0).all() else round(val, 2)
                     df[column] = num.fillna(val)
+                    if (num.dropna() % 1 == 0).all():
+                        try:
+                            df[column] = df[column].round().astype('Int64')
+                        except: pass
         except: pass
         return df
 
@@ -35,6 +39,10 @@ class DataCleaner:
                 if pd.notna(val):
                     val = int(round(val)) if (num.dropna() % 1 == 0).all() else round(val, 2)
                     df[column] = num.fillna(val)
+                    if (num.dropna() % 1 == 0).all():
+                        try:
+                            df[column] = df[column].round().astype('Int64')
+                        except: pass
         except: pass
         return df
 
@@ -252,7 +260,13 @@ class DataCleaner:
 
     def standardize_text(self, df: pd.DataFrame, column: str):
         try:
-            if column in df.columns:
+            if column in df.columns and not pd.api.types.is_numeric_dtype(df[column]):
+                # If column is mostly numbers, don't convert to string title case
+                s_clean = df[column].replace(['NULL', 'null', 'None', 'none', 'NaN', 'nan', 'N/A', 'n/a', 'NA', 'na', '?', '-', ''], np.nan).dropna()
+                if not s_clean.empty:
+                    num = pd.to_numeric(s_clean, errors='coerce')
+                    if num.notnull().mean() >= 0.75:
+                        return df
                 mask = df[column].notnull()
                 df.loc[mask, column] = df.loc[mask, column].astype(str).str.strip().str.title()
                 df[column] = df[column].replace({'Nan': None, 'None': None, 'Null': None, '': None, 'nan': None})
@@ -727,6 +741,12 @@ class DataCleaner:
 
     def apply_cleaning_plan(self, df: pd.DataFrame, operations_list: list) -> tuple:
         df_clean = df.copy()
+        for col_name in df_clean.columns:
+            if df_clean[col_name].dtype == 'object':
+                df_clean[col_name] = df_clean[col_name].replace(
+                    ['NULL', 'null', 'None', 'none', 'NaN', 'nan', 'N/A', 'n/a', 'NA', 'na', '?', '-', ''],
+                    np.nan
+                )
         report = []
         for op in operations_list:
             col = op.get('column')

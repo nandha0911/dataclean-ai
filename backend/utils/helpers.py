@@ -13,8 +13,16 @@ def detect_column_type(series: pd.Series) -> str:
     elif pd.api.types.is_datetime64_any_dtype(series):
         return 'datetime'
     else:
+        # Check if non-null values are numeric strings (e.g. ['25', '29', 'NULL'])
+        s_clean = series.replace(['NULL', 'null', 'None', 'none', 'NaN', 'nan', 'N/A', 'n/a', 'NA', 'na', '?', '-', ''], np.nan).dropna()
+        if not s_clean.empty:
+            num = pd.to_numeric(s_clean, errors='coerce')
+            if num.notnull().mean() >= 0.75:
+                if (num.dropna() % 1 == 0).all():
+                    return 'integer'
+                return 'float'
         unique_count = series.nunique()
-        if unique_count > 0 and unique_count / len(series) < 0.05:
+        if unique_count > 0 and unique_count / max(1, len(series)) < 0.05:
             return 'categorical'
         return 'text'
 

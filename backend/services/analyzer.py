@@ -63,10 +63,15 @@ class DataAnalyzer:
         for col in df.columns:
             try:
                 series = df[col]
-                missing_count = int(series.isnull().sum())
+                # Normalize pseudo-null values ('NULL', 'null', 'None', 'NaN', '?', '-', '')
+                series_norm = series.replace(
+                    ['NULL', 'null', 'None', 'none', 'NaN', 'nan', 'N/A', 'n/a', 'NA', 'na', '?', '-', ''],
+                    np.nan
+                )
+                missing_count = int(series_norm.isnull().sum())
                 missing_pct = (missing_count / total_rows) * 100 if total_rows > 0 else 0
                 
-                dtype = detect_column_type(series)
+                dtype = detect_column_type(series_norm)
                 
                 if dtype in ['integer', 'float', 'numeric']:
                     dataset_level['numeric_columns'].append(col)
@@ -78,7 +83,7 @@ class DataAnalyzer:
                     dataset_level['text_columns'].append(col)
                 
                 # Duplicates count in this column
-                dup_count = int(series.duplicated().sum())
+                dup_count = int(series_norm.duplicated().sum())
                 has_duplicate_values = dup_count > 0
                 duplicate_column_detected = identical_cols.get(col, False)
                 
@@ -92,11 +97,11 @@ class DataAnalyzer:
                 # New metrics
                 cardinality = 0.0
                 frequency_distribution = {}
-                unique_count = series.nunique(dropna=True)
+                unique_count = series_norm.nunique(dropna=True)
                 zero_count = 0
                 negative_count = 0
                 
-                blank_count = 0
+                blank_count = int((series.astype(str).str.strip() == '').sum()) if series.dtype == 'object' else 0
                 missing_pattern = 'MCAR' if missing_pct < 5 else 'structured'
                 
                 mixed_type_detected = False
