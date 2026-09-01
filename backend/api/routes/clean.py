@@ -60,12 +60,23 @@ async def clean_dataset(dataset_id: int, request: Union[CleaningRequest, List[di
         else:
             operations_list = []
 
+        # Deduplicate operations list so identical operations do not re-run on the same column
+        unique_ops = []
+        seen_op = set()
+        for op in operations_list:
+            col_k = str(op.get('column', '')).strip().lower()
+            act_k = str(op.get('operation') or op.get('technique') or '').strip().lower().replace(' ', '_').replace('-', '_')
+            if (col_k, act_k) not in seen_op:
+                seen_op.add((col_k, act_k))
+                unique_ops.append(op)
+        operations_list = unique_ops
+
         cleaned_path = get_cleaned_path(dataset.filename)
         is_large_csv = dataset.filename.lower().endswith('.csv') and (dataset.row_count and dataset.row_count > 100000)
 
         # ── 1. High-Scale Chunk Streaming for Multi-Million Row Datasets (2.6M+ rows) ──
         if is_large_csv and os.path.exists(dataset.original_path):
-            chunksize = 200000
+            chunksize = 400000
             total_rows_before = 0
             total_rows_after = 0
             total_nulls_before = 0
