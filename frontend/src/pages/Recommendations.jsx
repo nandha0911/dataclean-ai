@@ -12,7 +12,6 @@ import NordicCard from '../components/ui/NordicCard';
 import CleaningProgressBar from '../components/ui/CleaningProgressBar';
 import useAppStore from '../store/useAppStore';
 import { getRecommendations, cleanDataset } from '../api/client';
-import AIChat from '../components/AIChat';
 import toast from 'react-hot-toast';
 
 // ── Category metadata A–Y ───────────────────────────────────────────────────
@@ -812,9 +811,6 @@ export default function Recommendations() {
           </div>
         </NordicCard>
       )}
-
-      {/* AI Chat */}
-      <AIChat />
     </div>
   );
 }
